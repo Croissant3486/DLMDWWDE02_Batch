@@ -16,6 +16,8 @@ Aufbau:
 
      Enthält alle Dokumente der "Erarbeitungs-/Reflexionsphase". Der gesamte Code wird in diesem GitHub Repository veröffentlicht und so erstellt, dass dieser Reproduzierbar ist. Es wird bei der Implementation darauf geachtet, dass alle Elemente die in der "Konzeptionsphase" erarbeitet worden sind in diesem Abschnitt Anwendung finden.
 
-     Im Repo befinden sich Dockerdateien für die Erstellung von drei Microservices. Für den Ingest wird ein "Kafka" Container verwendet, für die Prozessierung ein Spark Container und für die Persistierung ein HDFS Container. Die Inputdaten würden bereits in Punkt 1. erwähnt und der Output wird statistische Maße enthalten inklusive einer Visualisierung der Daten mittels eines Graphen.
+     Um eine korrekte Ausführung des Code zu gewährleisten muss zunächst die ZIP-Datei im "Input" Ordner entpackt werden. Dies ist leider notwendig, da GitHub nur eine Upload Datei größe von <100 MB zulässt.
+
+     Im Repo befinden sich eine Docker Compose Datei für die Erstellung der drei Microservices. Für den Ingest wird ein "Kafka" Container verwendet, für die Prozessierung ein Spark Container und für die Persistierung ein HDFS Container. Die Inputdaten wurden bereits in Punkt 1. erwähnt. Der Output wird statistische Maße enthalten inklusive einer Visualisierung der Daten mittels eines Graphen.
 
   5. Ordner "Phase 3"   
