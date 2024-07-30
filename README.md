@@ -14,4 +14,8 @@ Aufbau:
       
   3. Ordner "Phase 2"
 
-  4. Ordner "Phase 3"   
+     Enthält alle Dokumente der "Erarbeitungs-/Reflexionsphase". Der gesamte Code wird in diesem GitHub Repository veröffentlicht und so erstellt, dass dieser Reproduzierbar ist. Es wird bei der Implementation darauf geachtet, dass alle Elemente die in der "Konzeptionsphase" erarbeitet worden sind in diesem Abschnitt Anwendung finden.
+
+     Im Repo befinden sich Dockerdateien für die Erstellung von drei Microservices. Für den Ingest wird ein "Kafka" Container verwendet, für die Prozessierung ein Spark Container und für die Persistierung ein HDFS Container. Die Inputdaten würden bereits in Punkt 1. erwähnt und der Output wird statistische Maße enthalten inklusive einer Visualisierung der Daten mittels eines Graphen.
+
+  5. Ordner "Phase 3"   
