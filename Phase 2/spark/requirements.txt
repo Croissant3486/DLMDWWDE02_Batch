@@ -1,1 +1,4 @@
 pyspark
+numpy
+matplotlib
+seaborn

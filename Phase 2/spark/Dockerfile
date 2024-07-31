@@ -14,20 +14,15 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# Switch back to the original non-root user (usually 1001 in Bitnami images)
-USER 1001
-
-
 # Create a virtual environment
-RUN python3 -m venv venv
+RUN python3 -m venv /app/venv
 
-# Activate the virtual environment and install dependencies
+# Install dependencies into the virtual environment
 COPY requirements.txt /app/
-RUN . venv/bin/activate && pip install --no-cache-dir -r /app/requirements.txt
+RUN /app/venv/bin/pip install --no-cache-dir -r /app/requirements.txt
 
-# Set environment variables
-ENV HADOOP_HOME=/opt/hadoop
-ENV HADOOP_OPTS="-Djava.library.path=$HADOOP_HOME/lib/native"
+# Set environment variables for Spark to use the virtual environment
+ENV PATH="/app/venv/bin:${PATH}"
 
 # Set the working directory
 WORKDIR /app
@@ -35,8 +30,5 @@ WORKDIR /app
 # Use created User to circumvent kerberos error
 USER sparkuser
 
-
 # Set the entry point to run the Spark script
 ENTRYPOINT ["spark-submit", "--packages", "org.apache.spark:spark-sql-kafka-0-10_2.12:3.4.1", "--conf",  "spark.jars.ivy=/tmp", "/spark/temperature_processor.py"]
-
-#spark-submit --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.4.1 --conf spark.jars.ivy="/tmp" <myscript>.py
