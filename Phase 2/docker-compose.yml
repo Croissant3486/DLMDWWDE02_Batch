@@ -1,21 +1,27 @@
 services:
   zookeeper:
-    image: bitnami/zookeeper:latest
-    ports:
-      - "2181:2181"
+    image: 'bitnami/zookeeper:latest'
     environment:
       - ALLOW_ANONYMOUS_LOGIN=yes
 
   kafka:
-    image: bitnami/kafka:latest
-    ports:
-      - "9092:9092"
+    image: 'bitnami/kafka:latest'
     environment:
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      - KAFKA_BROKER_ID=1
+      - KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181
+      - ALLOW_PLAINTEXT_LISTENER=yes
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092
     depends_on:
       - zookeeper
+
+  producer:
+    build: ./kafka
+    depends_on:
+      - kafka
+      - zookeeper
+    volumes:
+      - ./input:/input
+      - ./kafka:/kafka
 
   spark-master:
     image: bitnami/spark:latest
@@ -24,24 +30,45 @@ services:
       - "7077:7077"
     environment:
       - SPARK_MODE=master
+      - JAVA_HOME=/opt/bitnami/java
       - SPARK_MASTER_HOST=spark-master
       - SPARK_MASTER_PORT=7077
     networks:
       - spark-network
+    volumes:
+      - ./spark:/spark
 
   spark-worker:
     image: bitnami/spark:latest
     environment:
       - SPARK_MODE=worker
       - SPARK_MASTER_URL=spark://spark-master:7077
+      - JAVA_HOME=/opt/bitnami/java
+      - SPARK_EXECUTOR_MEMORY=4G
+      - SPARK_WORKER_MEMORY=4G
+      - SPARK_WORKER_CORES=4
+    volumes:
+      - ./spark:/spark
     depends_on:
       - spark-master
     networks:
       - spark-network
 
+  spark-submit:
+    build: ./spark
+    volumes:
+      - ./spark:/spark
+    depends_on:
+      - spark-master
+      - kafka
+      - producer
+      - namenode
+    networks:
+      - spark-network
+      - hdfs-network
+
   namenode:
     image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
-    container_name: namenode
     ports:
       - 9870:9870
       - 9000:9000
@@ -51,20 +78,23 @@ services:
       - CLUSTER_NAME=test
     env_file:
       - ./hdfs/hadoop.env
+    networks:
+      - hdfs-network
+
   datanode:
     image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
-    container_name: datanode
     volumes:
       - hadoop_datanode:/hadoop/dfs/data
     environment:
       SERVICE_PRECONDITION: "namenode:9870"
     env_file:
       - ./hdfs/hadoop.env
+    networks:
+      - hdfs-network
 
 volumes:
   hadoop_namenode:
   hadoop_datanode:
-
 
 networks:
   spark-network:

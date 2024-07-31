@@ -8,7 +8,7 @@ spark = SparkSession.builder \
 
 # Read from Kafka
 df = spark \
-    .readStream \
+    .read \
     .format("kafka") \
     .option("kafka.bootstrap.servers", "kafka:9092") \
     .option("subscribe", "temperature") \
