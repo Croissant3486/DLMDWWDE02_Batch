@@ -11,3 +11,4 @@ done
 
 echo "Creating HDFS directories..."
 hdfs dfs -mkdir -p /hadoop/dfs/temperatureData/
+chown -R hdfs:hadoop /hadoop/dfs/temperatureData/

@@ -69,7 +69,7 @@ def plot_aggregations(df: pd.DataFrame, time_unit: str):
     plt.ylabel('Average Temperature')
     plt.xticks(rotation=45)
     plt.tight_layout()
-    file_path = f'/hadoop/dfs/temperatureData/average_temperature_per_{time_unit}.png'
+    file_path = f'/tmp/hadoop-root/dfs/data/average_temperature_per_{time_unit}.png'
     plt.savefig(file_path)
     logger.info(f"Saved visualization to {file_path}")
 
@@ -121,10 +121,10 @@ def process_data():
                 # logger.info("Yearly aggregations performed.")
 
                 # Save to HDFS
-                monthly_aggregates.write.mode('append').parquet('/hadoop/dfs/temperatureData/monthly')
-                # mode_per_month.write.mode('append').parquet('/hadoop/dfs/temperatureData/monthly_mode')
-                # yearly_aggregates.write.mode('append').parquet('/hadoop/dfs/temperatureData/yearly')
-                # mode_per_year.write.mode('append').parquet('/hadoop/dfs/temperatureData/yearly_mode')
+                monthly_aggregates.write.mode('append').parquet('/tmp/hadoop-root/dfs/data/monthly')
+                # mode_per_month.write.mode('append').parquet('/tmp/hadoop-root/dfs/data/monthly_mode')
+                # yearly_aggregates.write.mode('append').parquet('/tmp/hadoop-root/dfs/data/yearly')
+                # mode_per_year.write.mode('append').parquet('/tmp/hadoop-root/dfs/data/yearly_mode')
 
                 logger.info("Aggregated data saved to HDFS.")
 
