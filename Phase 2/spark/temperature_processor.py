@@ -1,11 +1,11 @@
+import time
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import avg, col, max, min, expr, from_json
+from pyspark.sql.functions import avg, col, max, min, expr, from_json, percentile_approx, count
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, FloatType
 import logging
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
-from pyspark.sql import DataFrame
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -18,6 +18,10 @@ spark = SparkSession.builder \
 
 logger.info("Spark session started.")
 
+logger.info("Spark forced delay.")
+time.sleep(20)
+
+
 # Define schema for JSON data
 schema = StructType([
     StructField("timestamp", StringType(), True),
@@ -25,94 +29,123 @@ schema = StructType([
     StructField("temperature", FloatType(), True)
 ])
 
-# Read data from Kafka
-dataframe = spark.read \
-    .format("kafka") \
-    .option("kafka.bootstrap.servers", "kafka:9092") \
-    .option("subscribe", "temperature") \
-    .load()
+def read_from_kafka():
 
-logger.info("Data read from Kafka.")
+    # Read data from Kafka
+    df = spark.read \
+        .format("kafka") \
+        .option("kafka.bootstrap.servers", "kafka:9092") \
+        .option("subscribe", "temperature") \
+        .load()
 
-# Parse the JSON data
-dataframe = dataframe.selectExpr("CAST(value AS STRING) as json") \
-    .select(from_json(col("json"), schema).alias("data")) \
-    .select("data.*")
+    logger.info("Data read from Kafka.")
 
-logger.info("JSON data parsed.")
+    # Parse the JSON data
+    df = df.selectExpr("CAST(value AS STRING) as json") \
+        .select(from_json(col("json"), schema).alias("data")) \
+        .select("data.*")
 
-# Convert timestamp to month and year
-dataframe = dataframe.withColumn("year_month", expr("substring(timestamp, 1, 7)"))
+    logger.info("JSON data parsed.")
 
-# Log the schema and initial data
-dataframe.printSchema()
-dataframe.show(5)
-logger.info("Schema and sample data logged.")
+    # Convert timestamp to month and year
+    df = df.withColumn("year_month", expr("substring(timestamp, 1, 7)"))
+    df = df.withColumn("year", expr("substring(timestamp, 1, 4)"))
 
-# Perform aggregations
-monthly_aggregates = dataframe.groupBy("station_id", "year_month").agg(
-    avg("temperature").alias("average_temperature"),
-    (max("temperature") - min("temperature")).alias("temperature_range"),
-    expr("percentile_approx(temperature, 0.5)").alias("median_temperature")
-)
+    return df
+        
 
-logger.info("Aggregations performed.")
-
-# Log the schema and aggregated data
-monthly_aggregates.printSchema()
-monthly_aggregates.show(5)
-logger.info("Schema and sample aggregated data logged.")
-
-# Convert Spark DataFrame to Pandas DataFrame for visualization
-def spark_to_pandas(spark_dataframe: DataFrame) -> pd.DataFrame:
-    return spark_dataframe.toPandas()
-
-pandas_dataframe = spark_to_pandas(monthly_aggregates)
+# Function to calculate mode
+def calculate_mode(df, column):
+    mode_df = df.groupBy(column).agg(count(column).alias('count')).orderBy('count', ascending=False)
+    mode_value = mode_df.first()[0]
+    return mode_value
 
 # Visualization function
-def plot_aggregations(dataframe: pd.DataFrame):
+def plot_aggregations(df: pd.DataFrame, time_unit: str):
     plt.figure(figsize=(10, 6))
-    sns.lineplot(data=dataframe, x='year_month', y='average_temperature', hue='station_id', marker='o')
-    plt.title('Average Temperature Per Month')
-    plt.xlabel('Year-Month')
+    sns.lineplot(data=df, x=time_unit, y='average_temperature', hue='station_id', marker='o')
+    plt.title(f'Average Temperature Per {time_unit.capitalize()}')
+    plt.xlabel(time_unit.capitalize())
     plt.ylabel('Average Temperature')
     plt.xticks(rotation=45)
     plt.tight_layout()
-    plt.savefig('/path/to/hdataframes/average_temperature_per_month.png')
-    plt.close()
+    file_path = f'/hadoop/dfs/temperatureData/average_temperature_per_{time_unit}.png'
+    plt.savefig(file_path)
+    logger.info(f"Saved visualization to {file_path}")
 
-    plt.figure(figsize=(10, 6))
-    sns.lineplot(data=dataframe, x='year_month', y='temperature_range', hue='station_id', marker='o')
-    plt.title('Temperature Range Per Month')
-    plt.xlabel('Year-Month')
-    plt.ylabel('Temperature Range')
-    plt.xticks(rotation=45)
-    plt.tight_layout()
-    plt.savefig('/path/to/hdataframes/temperature_range_per_month.png')
-    plt.close()
+# Check for data and process in batches
+def process_data():
+    try:
+        while True:
+            df = read_from_kafka()
+            if df.count() > 0:
+                # Log the schema and initial data
+                df.printSchema()
+                df.show(5)
+                logger.info("Schema and sample data logged.")
 
-    plt.figure(figsize=(10, 6))
-    sns.lineplot(data=dataframe, x='year_month', y='median_temperature', hue='station_id', marker='o')
-    plt.title('Median Temperature Per Month')
-    plt.xlabel('Year-Month')
-    plt.ylabel('Median Temperature')
-    plt.xticks(rotation=45)
-    plt.tight_layout()
-    plt.savefig('/path/to/hdataframes/median_temperature_per_month.png')
-    plt.close()
+                # Perform aggregations per month
+                monthly_aggregates = df.groupBy("station_id", "year_month").agg(
+                    avg("temperature").alias("average_temperature"),
+                    (max("temperature") - min("temperature")).alias("temperature_range"),
+                    percentile_approx("temperature", 0.5).alias("median_temperature")
+                )
 
-logger.info("Creating visualizations.")
-plot_aggregations(pandas_dataframe)
-logger.info("Visualizations created and saved to HDFS.")
+                logger.info(monthly_aggregates)
 
-# Save aggregated data to HDFS
-monthly_aggregates.write \
-    .format("parquet") \
-    .mode("overwrite") \
-    .save("/path/to/hdataframes/temperature_aggregates")
+                # # Calculate mode per month
+                # mode_per_month = df.groupBy("station_id", "year_month").agg(
+                #     expr('first(temperature) as temperature')  # Placeholder for the mode
+                # ).select("station_id", "year_month", "temperature")
 
-logger.info("Data saved to HDFS.")
+                # # Apply mode calculation
+                # mode_per_month = mode_per_month.rdd.map(lambda row: (row.station_id, row.year_month, calculate_mode(df.filter((col("station_id") == row.station_id) & (col("year_month") == row.year_month)), "temperature"))).toDF(["station_id", "year_month", "mode_temperature"])
 
-# Stop the Spark session
-spark.stop()
-logger.info("Spark session stopped.")
+                # logger.info("Monthly aggregations performed.")
+
+                # # Perform aggregations per year
+                # yearly_aggregates = df.groupBy("station_id", "year").agg(
+                #     avg("temperature").alias("average_temperature"),
+                #     (max("temperature") - min("temperature")).alias("temperature_range"),
+                #     percentile_approx("temperature", 0.5).alias("median_temperature")
+                # )
+
+                # # Calculate mode per year
+                # mode_per_year = df.groupBy("station_id", "year").agg(
+                #     expr('first(temperature) as temperature')  # Placeholder for the mode
+                # ).select("station_id", "year", "temperature")
+
+                # # Apply mode calculation
+                # mode_per_year = mode_per_year.rdd.map(lambda row: (row.station_id, row.year, calculate_mode(df.filter((col("station_id") == row.station_id) & (col("year") == row.year)), "temperature"))).toDF(["station_id", "year", "mode_temperature"])
+
+                # logger.info("Yearly aggregations performed.")
+
+                # Save to HDFS
+                monthly_aggregates.write.mode('append').parquet('/hadoop/dfs/temperatureData/monthly')
+                # mode_per_month.write.mode('append').parquet('/hadoop/dfs/temperatureData/monthly_mode')
+                # yearly_aggregates.write.mode('append').parquet('/hadoop/dfs/temperatureData/yearly')
+                # mode_per_year.write.mode('append').parquet('/hadoop/dfs/temperatureData/yearly_mode')
+
+                logger.info("Aggregated data saved to HDFS.")
+
+                # Convert Spark DataFrame to Pandas DataFrame for visualization
+                pandas_monthly_df = monthly_aggregates.toPandas()
+                # pandas_yearly_df = yearly_aggregates.toPandas()
+
+
+
+                # Create visualizations
+                logger.info("Creating visualizations.")
+                plot_aggregations(pandas_monthly_df, 'year_month')
+                # plot_aggregations(pandas_yearly_df, 'year')
+
+                logger.info("Visualizations created.")
+
+            logger.info("Sleep to wait for new data.")
+            time.sleep(60)  # Sleep to prevent continuous querying, adjust as needed
+
+    except Exception as e:
+        logger.error(f"Error in processing data: {e}")
+
+# Start processing data
+process_data()
