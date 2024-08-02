@@ -65,6 +65,7 @@ services:
     build: ./spark
     volumes:
       - ./spark:/spark
+      - ./output:/output
     depends_on:
       - spark-master
       - kafka
@@ -77,7 +78,7 @@ services:
   namenode:
     image: apache/hadoop:3
     hostname: namenode
-    command: hdfs namenode && bash -c /docker-entrypoint-init.d/init-hdfs.sh
+    command: hdfs namenode
     ports:
       - 9870:9870
       - 8020:8020
@@ -88,13 +89,18 @@ services:
     networks:
       - hdfs-network
     volumes:
-      - ./hdfs/init-hdfs.sh:/docker-entrypoint-init.d/init-hdfs.sh
+      - ./hdfs:/hdfs
 
   datanode:
     image: apache/hadoop:3
     command: [ "hdfs", "datanode" ]
+    hostname: localhost
+    ports:
+      - 9864:9864
     env_file:
       - ./hdfs/hadoop.env
+    environment:
+      SERVICE_PRECONDITION: "namenode:9870"
     networks:
       - hdfs-network
 

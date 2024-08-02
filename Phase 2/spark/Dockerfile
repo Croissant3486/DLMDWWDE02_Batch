@@ -6,7 +6,7 @@ FROM bitnami/spark:latest
 # Switch to the root user to install packages
 USER root
 
-RUN adduser --disabled-password --gecos '' --uid 1000 sparkuser
+RUN adduser --disabled-password --gecos '' --uid 1000 hadoop
 
 # Install Python and pip
 RUN apt-get update && \
@@ -27,8 +27,7 @@ ENV PATH="/app/venv/bin:${PATH}"
 # Set the working directory
 WORKDIR /app
 
-# Use created User to circumvent kerberos error
-USER sparkuser
+USER hadoop
 
 # Set the entry point to run the Spark script
 ENTRYPOINT ["spark-submit",  "--packages", "org.apache.spark:spark-sql-kafka-0-10_2.12:3.4.1", "--conf",  "spark.jars.ivy=/tmp", "/spark/temperature_processor.py"]

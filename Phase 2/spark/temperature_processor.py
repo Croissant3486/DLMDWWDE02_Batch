@@ -1,6 +1,6 @@
 import time
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import avg, col, max, min, expr, from_json, percentile_approx, count
+from pyspark.sql.functions import avg, col, max, min, expr, from_json, percentile_approx, count, base64, col
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, FloatType
 import logging
 import matplotlib.pyplot as plt
@@ -36,14 +36,10 @@ def read_from_kafka():
         .option("subscribe", "temperature") \
         .load()
 
-    logger.info("Data read from Kafka.")
-
     # Parse the JSON data
     df = df.selectExpr("CAST(value AS STRING) as json") \
         .select(from_json(col("json"), schema).alias("data")) \
         .select("data.*")
-
-    logger.info("JSON data parsed.")
 
     # Convert timestamp to month and year
     df = df.withColumn("year_month", expr("substring(timestamp, 1, 7)"))
@@ -66,8 +62,18 @@ def plot_aggregations(df: pd.DataFrame, time_unit: str):
     plt.ylabel('Average Temperature')
     plt.xticks(rotation=45)
     plt.tight_layout()
-    file_path = f'/tmp/hadoop-root/dfs/data/average_temperature_per_{time_unit}.png'
+
+    #Lösung zum Speichern von Daten in HDFS
+    #file_path = f'/tmp/average_temperature_per_{time_unit}.png'
+    #plt.savefig(file_path)
+    #img_df = spark.read.format("image").load(file_path)
+    #proc_df = img_df.select(base64(col("image.data")).alias('encoded'))
+    #proc_df.coalesce(1).write.mode('overwrite').format("text").save('hdfs://namenode:8020/tmp/hadoop-root/dfs/data/visuals')
+
+    #Da impraktikabel wird das Image zurück auf die local disk, in das output verzeichnis, geschrieben.
+    file_path = f'/output/average_temperature_per_{time_unit}.png'
     plt.savefig(file_path)
+
     logger.info(f"Saved visualization to {file_path}")
 
 # Check for data and process in batches
@@ -76,8 +82,8 @@ def process_data():
         while True:
             df = read_from_kafka()
             if df.count() > 0:
+                logger.info("parsing data batch from kafka.")
                 # Log the schema and initial data
-                df.printSchema()
                 df.show(5)
                 logger.info("Schema and sample data logged.")
 
@@ -97,11 +103,11 @@ def process_data():
                     percentile_approx("temperature", 0.5).alias("median_temperature")
                 )
 
-                logger.info(yearly_aggregates)
-
+                logger.info("i am here")
                 # Save to HDFS as CSV
-                monthly_aggregates.write.mode('append').option("header", "true").csv('hdfs://namenode:8020/data/monthly')
-                yearly_aggregates.write.mode('append').option("header", "true").csv('hdfs://namenode:8020/data/yearly')
+                monthly_aggregates.write.mode('append').option("header", "true").csv('hdfs://namenode:8020/tmp/hadoop-root/dfs/data/monthly')
+                yearly_aggregates.write.mode('append').option("header", "true").csv('hdfs://namenode:8020//tmp/hadoop-root/dfs/data/yearly')
+
 
                 logger.info("Aggregated data saved to HDFS as CSV.")
 
@@ -112,7 +118,7 @@ def process_data():
                 # Create visualizations
                 logger.info("Creating visualizations.")
                 plot_aggregations(pandas_monthly_df, 'year_month')
-                plot_aggregations(pandas_yearly_df, 'year')
+                #plot_aggregations(pandas_yearly_df, 'year')
 
                 logger.info("Visualizations created.")
 
