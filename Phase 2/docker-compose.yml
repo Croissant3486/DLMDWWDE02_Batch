@@ -68,107 +68,54 @@ services:
     depends_on:
       - spark-master
       - kafka
-      - producer
       - namenode
     networks:
       - spark-network
       - kafka-network
       - hdfs-network
-      
-  # namenode:
-  #     image: apache/hadoop:3
-  #     hostname: namenode
-  #     command: ["hdfs", "namenode"]
-  #     ports:
-  #       - 9870:9870
-  #     env_file:
-  #       - ./hdfs/hadoop.env
-  #     environment:
-  #         ENSURE_NAMENODE_DIR: "/tmp/hadoop-root/dfs/name"
-  #     networks:
-  #      - hdfs-network
-
-  # datanode:
-  #     image: apache/hadoop:3
-  #     command: ["hdfs", "datanode"]
-  #     env_file:
-  #       - ./hdfs/hadoop.env
-  #     networks:
-  #      - hdfs-network
 
   namenode:
-      image: apache/hadoop:3
-      hostname: namenode
-      command: hdfs namenode 
-      #&& bash -c /docker-entrypoint-init.d/init-hdfs.sh
-      ports:
-        - 9870:9870
-      env_file:
-        - ./hdfs/hadoop.env
-      environment:
-          ENSURE_NAMENODE_DIR: "/tmp/hadoop-root/dfs/name"
-      networks:
-        - hdfs-network
-      volumes:
-        - ./hdfs/init-hdfs.sh:/docker-entrypoint-init.d/init-hdfs.sh
+    image: apache/hadoop:3
+    hostname: namenode
+    command: hdfs namenode && bash -c /docker-entrypoint-init.d/init-hdfs.sh
+    ports:
+      - 9870:9870
+      - 8020:8020
+    env_file:
+      - ./hdfs/hadoop.env
+    environment:
+      - ENSURE_NAMENODE_DIR=/tmp/hadoop-root/dfs/name
+    networks:
+      - hdfs-network
+    volumes:
+      - ./hdfs/init-hdfs.sh:/docker-entrypoint-init.d/init-hdfs.sh
 
   datanode:
-      image: apache/hadoop:3
-      command: ["hdfs", "datanode"]
-      env_file:
-        - ./hdfs/hadoop.env
-      networks:
-        - hdfs-network
+    image: apache/hadoop:3
+    command: [ "hdfs", "datanode" ]
+    env_file:
+      - ./hdfs/hadoop.env
+    networks:
+      - hdfs-network
 
   resourcemanager:
-      image: apache/hadoop:3
-      hostname: resourcemanager
-      command: ["yarn", "resourcemanager"]
-      ports:
-         - 8088:8088
-      env_file:
-        - ./hdfs/hadoop.env
-      networks:
-       - hdfs-network
+    image: apache/hadoop:3
+    hostname: resourcemanager
+    command: [ "yarn", "resourcemanager" ]
+    ports:
+      - 8088:8088
+    env_file:
+      - ./hdfs/hadoop.env
+    networks:
+      - hdfs-network
 
   nodemanager:
-      image: apache/hadoop:3
-      command: ["yarn", "nodemanager"]
-      env_file:
-        - ./hdfs/hadoop.env
-      networks:
-        - hdfs-network
-
-  # namenode:
-  #   image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
-  #   ports:
-  #     - 9870:9870
-  #     - 9000:9000
-  #   volumes:
-  #     - hadoop_namenode:/hadoop/dfs/name
-  #     - ./hdfs/init-hdfs.sh:/docker-entrypoint-init.d/init-hdfs.sh
-  #   command: ["/bin/bash", "/docker-entrypoint-init.d/init-hdfs.sh"]
-  #   environment:
-  #     - CLUSTER_NAME=test
-  #   env_file:
-  #     - ./hdfs/hadoop.env
-  #   networks:
-  #     - hdfs-network
-
-  # datanode:
-  #   image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
-  #   volumes:
-  #     - hadoop_datanode:/hadoop/dfs/data
-  #   environment:
-  #     - SERVICE_PRECONDITION=namenode:9870
-  #   env_file:
-  #     - ./hdfs/hadoop.env
-  #   networks:
-  #     - hdfs-network
-
-# volumes:
-#   hadoop_namenode:
-#   hadoop_datanode:
+    image: apache/hadoop:3
+    command: [ "yarn", "nodemanager" ]
+    env_file:
+      - ./hdfs/hadoop.env
+    networks:
+      - hdfs-network
 
 networks:
   kafka-network:

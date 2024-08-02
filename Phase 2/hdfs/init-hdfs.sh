@@ -10,5 +10,6 @@ do
 done
 
 echo "Creating HDFS directories..."
-hdfs dfs -mkdir -p /hadoop/dfs/temperatureData/
-chown -R hdfs:hadoop /hadoop/dfs/temperatureData/
+hdfs dfs -mkdir -p /tmp/hadoop-root/dfs/data/monthly
+hdfs dfs -mkdir -p /tmp/hadoop-root/dfs/data/yearly
+hdfs dfs -chmod -R 755 /tmp/hadoop-root/dfs/data

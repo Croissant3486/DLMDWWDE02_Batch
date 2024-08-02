@@ -82,7 +82,7 @@ dataframe_melted.sort_values(by=['station_id', 'MESS_DATUM'], inplace=True)
 # Initialize variables to manage batching
 current_station = None
 batch = []
-wait_time = 60  # Time to wait (in seconds) before sending the next batch. 1 minute should be good with this amount of data
+wait_time = 100  # Time to wait (in seconds) before sending the next batch. 100 seconds should be good with this amount of data
 
 # Create Kafka producer
 producer = create_kafka_producer()
@@ -97,7 +97,7 @@ for index, row in dataframe_melted.iterrows():
     if station_id != current_station:
         if batch:
 
-            if isFirstBatch:
+            if isFirstBatch == True:
                 threading.Thread(target=send_batch, args=(producer, batch)).start()
                 isFirstBatch = False
             else:

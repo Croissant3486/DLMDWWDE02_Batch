@@ -21,7 +21,6 @@ logger.info("Spark session started.")
 logger.info("Spark forced delay.")
 time.sleep(20)
 
-
 # Define schema for JSON data
 schema = StructType([
     StructField("timestamp", StringType(), True),
@@ -30,7 +29,6 @@ schema = StructType([
 ])
 
 def read_from_kafka():
-
     # Read data from Kafka
     df = spark.read \
         .format("kafka") \
@@ -52,7 +50,6 @@ def read_from_kafka():
     df = df.withColumn("year", expr("substring(timestamp, 1, 4)"))
 
     return df
-        
 
 # Function to calculate mode
 def calculate_mode(df, column):
@@ -93,51 +90,29 @@ def process_data():
 
                 logger.info(monthly_aggregates)
 
-                # # Calculate mode per month
-                # mode_per_month = df.groupBy("station_id", "year_month").agg(
-                #     expr('first(temperature) as temperature')  # Placeholder for the mode
-                # ).select("station_id", "year_month", "temperature")
+                # Perform aggregations per year
+                yearly_aggregates = df.groupBy("station_id", "year").agg(
+                    avg("temperature").alias("average_temperature"),
+                    (max("temperature") - min("temperature")).alias("temperature_range"),
+                    percentile_approx("temperature", 0.5).alias("median_temperature")
+                )
 
-                # # Apply mode calculation
-                # mode_per_month = mode_per_month.rdd.map(lambda row: (row.station_id, row.year_month, calculate_mode(df.filter((col("station_id") == row.station_id) & (col("year_month") == row.year_month)), "temperature"))).toDF(["station_id", "year_month", "mode_temperature"])
+                logger.info(yearly_aggregates)
 
-                # logger.info("Monthly aggregations performed.")
+                # Save to HDFS as CSV
+                monthly_aggregates.write.mode('append').option("header", "true").csv('hdfs://namenode:8020/data/monthly')
+                yearly_aggregates.write.mode('append').option("header", "true").csv('hdfs://namenode:8020/data/yearly')
 
-                # # Perform aggregations per year
-                # yearly_aggregates = df.groupBy("station_id", "year").agg(
-                #     avg("temperature").alias("average_temperature"),
-                #     (max("temperature") - min("temperature")).alias("temperature_range"),
-                #     percentile_approx("temperature", 0.5).alias("median_temperature")
-                # )
-
-                # # Calculate mode per year
-                # mode_per_year = df.groupBy("station_id", "year").agg(
-                #     expr('first(temperature) as temperature')  # Placeholder for the mode
-                # ).select("station_id", "year", "temperature")
-
-                # # Apply mode calculation
-                # mode_per_year = mode_per_year.rdd.map(lambda row: (row.station_id, row.year, calculate_mode(df.filter((col("station_id") == row.station_id) & (col("year") == row.year)), "temperature"))).toDF(["station_id", "year", "mode_temperature"])
-
-                # logger.info("Yearly aggregations performed.")
-
-                # Save to HDFS
-                monthly_aggregates.write.mode('append').parquet('/tmp/hadoop-root/dfs/data/monthly')
-                # mode_per_month.write.mode('append').parquet('/tmp/hadoop-root/dfs/data/monthly_mode')
-                # yearly_aggregates.write.mode('append').parquet('/tmp/hadoop-root/dfs/data/yearly')
-                # mode_per_year.write.mode('append').parquet('/tmp/hadoop-root/dfs/data/yearly_mode')
-
-                logger.info("Aggregated data saved to HDFS.")
+                logger.info("Aggregated data saved to HDFS as CSV.")
 
                 # Convert Spark DataFrame to Pandas DataFrame for visualization
                 pandas_monthly_df = monthly_aggregates.toPandas()
-                # pandas_yearly_df = yearly_aggregates.toPandas()
-
-
+                pandas_yearly_df = yearly_aggregates.toPandas()
 
                 # Create visualizations
                 logger.info("Creating visualizations.")
                 plot_aggregations(pandas_monthly_df, 'year_month')
-                # plot_aggregations(pandas_yearly_df, 'year')
+                plot_aggregations(pandas_yearly_df, 'year')
 
                 logger.info("Visualizations created.")
 
