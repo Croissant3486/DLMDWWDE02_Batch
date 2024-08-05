@@ -1,3 +1,8 @@
 FIX HDFS permissions
 
 Backup task for hdfs
+
+Github Doku
+
+
+Docker Desktop breaked after restart => https://stackoverflow.com/questions/71238673/docker-desktop-starting-forever-on-windows
