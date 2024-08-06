@@ -5,6 +5,7 @@ import pandas as pd
 import logging
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -16,7 +17,9 @@ def create_kafka_producer():
             producer = KafkaProducer(
                 bootstrap_servers='kafka:9092',
                 value_serializer=lambda v: json.dumps(v).encode('utf-8'),
-                linger_ms=0,  # Set to 0 to ensure immediate sending
+                linger_ms=500,  # Increase linger time to allow more batching
+                acks='all',  # Ensure that all replicas acknowledge the message
+                retries=5  # Set the number of retries in case of failure
             )
             return producer
         except Exception as e:
@@ -38,7 +41,6 @@ def create_kafka_topic(topic_name, num_partitions=1, replication_factor=1):
             admin_client.create_topics(new_topics=topic_list, validate_only=False)
             logging.info(f"Kafka topic '{topic_name}' created.")
             return
-        
         except Exception as e:
             logging.error(f"Failed to create Kafka topic: {e}")
             if i < max_retries - 1:
@@ -48,21 +50,14 @@ def create_kafka_topic(topic_name, num_partitions=1, replication_factor=1):
                 logging.error("Max retries reached. Exiting.")
                 raise
 
-
 def send_batch(producer, messages):
     try:
-       # logging.info(f"Sending batch: {messages}")  # Log the contents of the batch
         for message in messages:
             producer.send('temperature', message)
         producer.flush()
         logging.info("Batch sent successfully")
     except Exception as e:
         logging.error(f"Error sending batch: {e}")
-
-def delayed_send(producer, batch, wait_time):
-    logging.info(f"Waiting for {wait_time} seconds before sending batch...")
-    time.sleep(wait_time)
-    send_batch(producer, batch)
 
 # Check if the topic exists and create if not
 create_kafka_topic('temperature')
@@ -71,40 +66,28 @@ create_kafka_topic('temperature')
 dataframe = pd.read_csv('/input/german_temperature_data_1996_2021_from_selected_weather_stations.csv')
 
 # Melt the DataFrame to have station_id and temperature as separate columns
-dataframe_melted = dataframe.melt(id_vars=['MESS_DATUM'], var_name='station_id', value_name='temperature')
+dataframe_melted = dataframe.melt(id_vars=['MESS_DATUM'], var_name='station_id', value_name='temperature').dropna()
 
 # Convert station_id to integer
 dataframe_melted['station_id'] = dataframe_melted['station_id'].astype(int)
 
-# Sort DataFrame by station_id and timestamp
-dataframe_melted.sort_values(by=['station_id', 'MESS_DATUM'], inplace=True)
+# Sort DataFrame by timestamp (no need to sort by station_id now)
+dataframe_melted.sort_values(by=['MESS_DATUM'], inplace=True)
 
 # Initialize variables to manage batching
-current_station = None
+batch_size = 2500  # Set your desired batch size
 batch = []
-wait_time = 300  # Time to wait (in seconds) before sending the next batch. 300 seconds should be good with this amount of data
 
 # Create Kafka producer
 producer = create_kafka_producer()
 
-isFirstBatch = True
+# Initialize ThreadPoolExecutor
+executor = ThreadPoolExecutor(max_workers=5)
 
 # Iterate over the DataFrame rows
 for index, row in dataframe_melted.iterrows():
     timestamp = row['MESS_DATUM']
     station_id = row['station_id']
-    
-    if station_id != current_station:
-        if batch:
-
-            if isFirstBatch == True:
-                threading.Thread(target=send_batch, args=(producer, batch)).start()
-                isFirstBatch = False
-            else:
-                # Send the current batch in a separate thread and start a new batch immediately
-                threading.Thread(target=delayed_send, args=(producer, batch, wait_time)).start()
-            batch = []
-        current_station = station_id
     
     data = {
         'timestamp': timestamp,
@@ -112,10 +95,15 @@ for index, row in dataframe_melted.iterrows():
         'temperature': row['temperature']
     }
     batch.append(data)
-    
-# # Send any remaining messages in the batch
+
+    if len(batch) >= batch_size:
+        executor.submit(send_batch, producer, batch)
+        batch = []
+
+# Send any remaining messages in the batch
 if batch:
     send_batch(producer, batch)
 
+executor.shutdown(wait=True)
 # Close the producer
 producer.close()

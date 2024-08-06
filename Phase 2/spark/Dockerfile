@@ -23,6 +23,7 @@ RUN /app/venv/bin/pip install --no-cache-dir -r /app/requirements.txt
 
 # Set environment variables for Spark to use the virtual environment
 ENV PATH="/app/venv/bin:${PATH}"
+ENV SPARK_NO_DAEMONIZE=true
 
 # Set the working directory
 WORKDIR /app
