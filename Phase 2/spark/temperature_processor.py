@@ -9,6 +9,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import os
+import json
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -22,7 +23,7 @@ spark = SparkSession.builder \
 logger.info("Spark session started.")
 
 logger.info("Spark forced delay.")
-time.sleep(20)
+time.sleep(30)
 
 # Define schema for JSON data
 schema = StructType([
@@ -38,63 +39,52 @@ def get_mode(df, group_by_cols, value_col):
     mode_df = mode_df.withColumn('rank', F.rank().over(window)).filter(col('rank') == 1).drop('rank')
     return mode_df.select(group_by_cols + [col(value_col).alias('mode_temperature')])
 
+# Offset tracking functions
+OFFSET_FILE_PATH = "/tmp/offsets.json"
 
+def read_offsets():
+    if os.path.exists(OFFSET_FILE_PATH):
+        with open(OFFSET_FILE_PATH, 'r') as f:
+            offsets = json.load(f)
+    else:
+        offsets = {"temperature": {"0": 0}}  # Default offset if no file exists
+    return offsets
+
+def save_offsets(offsets):
+    with open(OFFSET_FILE_PATH, 'w') as f:
+        json.dump(offsets, f)
+
+# Read from Kafka with offset tracking
 def read_from_kafka():
-    # Read data from Kafka
+    offsets = read_offsets()
     df = spark.read \
         .format("kafka") \
         .option("kafka.bootstrap.servers", "kafka:9092") \
         .option("subscribe", "temperature") \
+        .option("startingOffsets", json.dumps(offsets)) \
         .load()
+    
+    df = df.selectExpr("CAST(value AS STRING) as json", "partition", "offset") \
+        .select(from_json(col("json"), schema).alias("data"), "partition", "offset") \
+        .select("data.*", "partition", "offset")
+    
+    latest_offsets = df.groupBy("partition").agg(F.max("offset").alias("max_offset")).collect()
+    latest_offsets = {str(row["partition"]): row["max_offset"] + 1 for row in latest_offsets}
 
-    # Parse the JSON data and filter out NaN values
-    df = df.selectExpr("CAST(value AS STRING) as json") \
-        .select(from_json(col("json"), schema).alias("data")) \
-        .select("data.*") \
-        .filter(col("temperature").isNotNull())
-
-    return df
-
-# # Function to calculate mode
-# def calculate_mode(df, column):
-#     mode_df = df.groupBy(column).agg(count(column).alias('count')).orderBy('count', ascending=False)
-#     mode_value = mode_df.first()[0]
-#     return mode_value
-
-# Visualization function
-def plot_aggregations(df: pd.DataFrame, year: str, station_id: str):
-    metrics = ['average_temperature', 'temperature_range', 'median_temperature', 'mode_temperature']
-
-    for metric in metrics:
-        plt.figure(figsize=(10, 6))
-        sns.lineplot(data=df, x='year_month', y=metric, marker='o')
-        plt.title(f'{metric.replace("_", " ").capitalize()} in {year} (Station: {station_id})')
-        plt.xlabel('Month')
-        plt.ylabel(metric.replace("_", " ").capitalize())
-        plt.xticks(rotation=45)
-        plt.tight_layout()
-
-        #Lösung zum Speichern von Daten in HDFS
-        #file_path = f'/tmp/average_temperature_per_{time_unit}.png'
-        #plt.savefig(file_path)
-        #img_df = spark.read.format("image").load(file_path)
-        #proc_df = img_df.select(base64(col("image.data")).alias('encoded'))
-        #proc_df.coalesce(1).write.mode('overwrite').format("text").save('hdfs://namenode:8020/tmp/hadoop-root/dfs/data/visuals'
-        #Da impraktikabel wird das Image zurück auf die local disk, in das output verzeichnis, geschrieben.
-        output_dir = f'/output/{station_id}/{year}'
-        os.makedirs(output_dir, exist_ok=True)
-        file_path = f'{output_dir}/{metric}.png'
-        plt.savefig(file_path)
-        logger.info(f"Saved visualization to {file_path}")
-        plt.clf()  # Clear the figure for the next plot
+    return df, latest_offsets
 
 # Check for data and process in batches
 def process_data():
     try:
-        while True:
-            df = read_from_kafka()
-            if df.count() > 0:
+        counter = 0
+        while counter < 6:
+            df, latest_offsets = read_from_kafka()
+            saved_offsets = read_offsets().get("temperature", {})
+            
+            if any(latest_offsets[partition] > saved_offsets.get(partition, 0) for partition in latest_offsets):
                 logger.info("Parsing data batch from Kafka.")
+
+                df = df.withColumn("temperature", col("temperature").cast(FloatType()))
 
                 # Add year and month columns
                 df = df.withColumn("year_month", date_format(col("timestamp"), "yyyy-MM"))
@@ -111,31 +101,94 @@ def process_data():
                 monthly_aggregates = monthly_aggregates.join(mode_df, on=["station_id", "year", "year_month"], how="left")
 
                 logger.info("Monthly aggregates:")
-                monthly_aggregates.show()
 
                 # Save to HDFS as CSV
-                monthly_aggregates.write.mode('append').option("header", "true").csv('hdfs://namenode:8020/tmp/hadoop-root/dfs/data/monthly')
+                monthly_aggregates.write.mode('append').option("header", "true").csv('hdfs://namenode:8020/tmp/hadoop-root/dfs/data/processed_data.csv')
 
                 logger.info("Aggregated data saved to HDFS as CSV.")
 
-                # Convert Spark DataFrame to Pandas DataFrame for visualization
-                pandas_monthly_df = monthly_aggregates.toPandas()
+                save_offsets({"temperature": latest_offsets})
+                logger.info("Offsets updated.")
 
-                # Create visualizations for each year
-                unique_years = pandas_monthly_df['year'].unique()
-                for yr in unique_years:
-                    unique_stations = pandas_monthly_df['station_id'].unique()
-                    for station_id in unique_stations:
-                        yearly_data = pandas_monthly_df[(pandas_monthly_df['year'] == yr) & (pandas_monthly_df['station_id'] == station_id)]
-                        plot_aggregations(yearly_data, str(yr), station_id)
-
-                logger.info("Visualizations created.")
+                counter = 0
+                logger.info("Reset no new data counter.")
+            else:
+                counter += 1
+                logger.info(f"No new data counter increased. Current: {counter}")
 
             logger.info("Sleeping to wait for new data.")
-            time.sleep(60)  # Sleep to prevent continuous querying, adjust as needed
-
+            time.sleep(10)  # Sleep to prevent continuous querying, adjust as needed
+            
+        create_visualizations()
     except Exception as e:
         logger.error(f"Error in processing data: {e}")
 
-# Start processing data
+# Visualization function with explicit color and style for each metric
+def plot_aggregations(df: pd.DataFrame, year: str, station_id: str):
+    metrics = {
+        'average_temperature': {'label': 'Average Temperature', 'color': 'b', 'linestyle': '-'},
+        'mode_temperature': {'label': 'Mode Temperature', 'color': 'r', 'linestyle': '--'},
+        'median_temperature': {'label': 'Median Temperature', 'color': 'g', 'linestyle': '-.'}
+    }
+
+    # Ensure sorting by year_month before plotting
+    df = df.sort_values('year_month')
+
+    # Round the values to one decimal place
+    df['average_temperature'] = df['average_temperature'].astype(float).round(1)
+    df['mode_temperature'] = df['mode_temperature'].astype(float).round(1)
+    df['median_temperature'] = df['median_temperature'].astype(float).round(1)
+
+    plt.figure(figsize=(12, 8))
+    
+    for metric, properties in metrics.items():
+        sns.lineplot(
+            data=df,
+            x='year_month',
+            y=metric,
+            marker='o',
+            label=properties['label'],
+            color=properties['color'],
+            linestyle=properties['linestyle']
+        )
+
+    plt.title(f'Temperature Metrics in {year} (Station: {station_id})')
+    plt.xlabel('Month')
+    plt.ylabel('Value')
+    plt.xticks(rotation=45)
+    plt.legend()
+    plt.tight_layout()
+
+    #Lösung zum Speichern von Daten in HDFS
+    #file_path = f'/tmp/average_temperature_per_{time_unit}.png'
+    #plt.savefig(file_path)
+    #img_df = spark.read.format("image").load(file_path)
+    #proc_df = img_df.select(base64(col("image.data")).alias('encoded'))
+    #proc_df.coalesce(1).write.mode('overwrite').format("text").save('hdfs://namenode:8020/tmp/hadoop-root/dfs/data/visuals'
+
+    #Da impraktikabel wird das Image zurück auf die local disk, in das output verzeichnis, geschrieben.
+    output_dir = f'/output/{station_id}/{year}'
+    os.makedirs(output_dir, exist_ok=True)
+    file_path = f'{output_dir}/temperature_metrics.png'
+    plt.savefig(file_path)
+    logger.info(f"Saved visualization to {file_path}")
+    plt.clf()  # Clear the figure for the next plot
+
+# Convert Spark DataFrame to Pandas DataFrame for visualization
+def create_visualizations():
+    aggregated_temperature_dataframe = spark.read.format("csv").option("header", "true").load("hdfs://namenode:8020/tmp/hadoop-root/dfs/data/processed_data.csv")
+    unique_years = aggregated_temperature_dataframe.select("year").distinct().collect()
+    unique_years = [row["year"] for row in unique_years]
+
+    for year in unique_years:
+        unique_stations = aggregated_temperature_dataframe.filter(col("year") == year).select("station_id").distinct().collect()
+        unique_stations = [row["station_id"] for row in unique_stations]
+        
+        for station_id in unique_stations:
+            yearly_data = aggregated_temperature_dataframe.filter((col("year") == year) & (col("station_id") == station_id)).toPandas()
+            plot_aggregations(yearly_data, str(year), station_id)
+
+    logger.info("Visualizations created.")
+    spark.stop()
+
 process_data()
