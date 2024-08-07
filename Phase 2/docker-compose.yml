@@ -11,10 +11,18 @@ services:
     environment:
       - KAFKA_BROKER_ID=1
       - KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181
-      - ALLOW_PLAINTEXT_LISTENER=yes
-      - KAFKA_LISTENER_NAME_PREFIX=PLAINTEXT://
-      - KAFKA_LISTENERS=PLAINTEXT://0.0.0.0:9092
-      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092
+      - ALLOW_PLAINTEXT_LISTENER=no
+      - KAFKA_LISTENERS=SSL://0.0.0.0:9093
+      - KAFKA_ADVERTISED_LISTENERS=SSL://kafka:9093
+      - KAFKA_SECURITY_PROTOCOL=SSL
+      - KAFKA_SSL_KEYSTORE_TYPE=PKCS12
+      - KAFKA_SSL_KEYSTORE_LOCATION=/certs/kafka.pfx
+      - KAFKA_SSL_KEYSTORE_PASSWORD=123QWEasd
+      - KAFKA_SSL_TRUSTSTORE_TYPE=PKCS12
+      - KAFKA_SSL_TRUSTSTORE_LOCATION=/certs/rootCA.pfx
+      - KAFKA_SSL_TRUSTSTORE_PASSWORD=123QWEasd
+    volumes:
+      - ./security/certs:/certs
     depends_on:
       - zookeeper
     networks:
@@ -40,10 +48,18 @@ services:
       - JAVA_HOME=/opt/bitnami/java
       - SPARK_MASTER_HOST=spark-master
       - SPARK_MASTER_PORT=7077
-    networks:
-      - spark-network
+      - SPARK_SSL_ENABLED=true
+      - SPARK_SSL_KEYSTORE=/certs/spark.pfx
+      - SPARK_SSL_KEYSTORE_PASSWORD=123QWEasd
+      - SPARK_SSL_KEYSTORE_TYPE=PKCS12
+      - SPARK_SSL_TRUSTSTORE=/certs/rootCA.pfx
+      - SPARK_SSL_TRUSTSTORE_PASSWORD=123QWEasd
+      - SPARK_SSL_TRUSTSTORE_TYPE=PKCS12
     volumes:
       - ./spark:/spark
+      - ./security/certs:/certs
+    networks:
+      - spark-network
 
   spark-worker:
     image: bitnami/spark:latest
@@ -54,8 +70,16 @@ services:
       - SPARK_EXECUTOR_MEMORY=4G
       - SPARK_WORKER_MEMORY=4G
       - SPARK_WORKER_CORES=4
+      - SPARK_SSL_ENABLED=true
+      - SPARK_SSL_KEYSTORE=/certs/spark.pfx
+      - SPARK_SSL_KEYSTORE_PASSWORD=123QWEasd
+      - SPARK_SSL_KEYSTORE_TYPE=PKCS12
+      - SPARK_SSL_TRUSTSTORE=/certs/rootCA.pfx
+      - SPARK_SSL_TRUSTSTORE_PASSWORD=123QWEasd
+      - SPARK_SSL_TRUSTSTORE_TYPE=PKCS12
     volumes:
       - ./spark:/spark
+      - ./security/certs:/certs
     depends_on:
       - spark-master
     networks:
@@ -88,6 +112,13 @@ services:
       - ./hdfs/config
     environment:
       - ENSURE_NAMENODE_DIR=/tmp/hadoop-root/dfs/name
+      - HADOOP_SSL_ENABLED=true
+      - HADOOP_SSL_KEYSTORE=/certs/hdfs.pfx
+      - HADOOP_SSL_KEYSTORE_PASSWORD=123QWEasd
+      - HADOOP_SSL_KEYSTORE_TYPE=PKCS12
+      - HADOOP_SSL_TRUSTSTORE=/certs/rootCA.pfx
+      - HADOOP_SSL_TRUSTSTORE_PASSWORD=123QWEasd
+      - HADOOP_SSL_TRUSTSTORE_TYPE=PKCS12
     networks:
       - hdfs-network
     volumes:
@@ -102,7 +133,14 @@ services:
     env_file:
       - ./hdfs/config
     environment:
-      SERVICE_PRECONDITION: "namenode:9870"
+      - SERVICE_PRECONDITION=namenode:9870
+      - HADOOP_SSL_ENABLED=true
+      - HADOOP_SSL_KEYSTORE=/certs/hdfs.pfx
+      - HADOOP_SSL_KEYSTORE_PASSWORD=123QWEasd
+      - HADOOP_SSL_KEYSTORE_TYPE=PKCS12
+      - HADOOP_SSL_TRUSTSTORE=/certs/rootCA.pfx
+      - HADOOP_SSL_TRUSTSTORE_PASSWORD=123QWEasd
+      - HADOOP_SSL_TRUSTSTORE_TYPE=PKCS12
     networks:
       - hdfs-network
 
@@ -114,6 +152,15 @@ services:
       - 8088:8088
     env_file:
       - ./hdfs/config
+    environment:
+      - SERVICE_PRECONDITION=namenode:9870
+      - HADOOP_SSL_ENABLED=true
+      - HADOOP_SSL_KEYSTORE=/certs/hdfs.pfx
+      - HADOOP_SSL_KEYSTORE_PASSWORD=123QWEasd
+      - HADOOP_SSL_KEYSTORE_TYPE=PKCS12
+      - HADOOP_SSL_TRUSTSTORE=/certs/rootCA.pfx
+      - HADOOP_SSL_TRUSTSTORE_PASSWORD=123QWEasd
+      - HADOOP_SSL_TRUSTSTORE_TYPE=PKCS12
     networks:
       - hdfs-network
 
@@ -122,6 +169,15 @@ services:
     command: [ "yarn", "nodemanager" ]
     env_file:
       - ./hdfs/config
+    environment:
+      - SERVICE_PRECONDITION=namenode:9870
+      - HADOOP_SSL_ENABLED=true
+      - HADOOP_SSL_KEYSTORE=/certs/hdfs.pfx
+      - HADOOP_SSL_KEYSTORE_PASSWORD=123QWEasd
+      - HADOOP_SSL_KEYSTORE_TYPE=PKCS12
+      - HADOOP_SSL_TRUSTSTORE=/certs/rootCA.pfx
+      - HADOOP_SSL_TRUSTSTORE_PASSWORD=123QWEasd
+      - HADOOP_SSL_TRUSTSTORE_TYPE=PKCS12
     networks:
       - hdfs-network
 
