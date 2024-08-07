@@ -85,7 +85,7 @@ services:
       - 9870:9870
       - 8020:8020
     env_file:
-      - ./hdfs/hadoop.env
+      - ./hdfs/config
     environment:
       - ENSURE_NAMENODE_DIR=/tmp/hadoop-root/dfs/name
     networks:
@@ -100,7 +100,7 @@ services:
     ports:
       - 9864:9864
     env_file:
-      - ./hdfs/hadoop.env
+      - ./hdfs/config
     environment:
       SERVICE_PRECONDITION: "namenode:9870"
     networks:
@@ -113,7 +113,7 @@ services:
     ports:
       - 8088:8088
     env_file:
-      - ./hdfs/hadoop.env
+      - ./hdfs/config
     networks:
       - hdfs-network
 
@@ -121,7 +121,7 @@ services:
     image: apache/hadoop:3
     command: [ "yarn", "nodemanager" ]
     env_file:
-      - ./hdfs/hadoop.env
+      - ./hdfs/config
     networks:
       - hdfs-network
 

@@ -15,10 +15,10 @@ def create_kafka_producer():
             producer = KafkaProducer(
                 bootstrap_servers='kafka:9092',
                 value_serializer=lambda v: json.dumps(v).encode('utf-8'),
-                acks='all',  # Ensure that all replicas acknowledge the message
-                retries=5,  # Set the number of retries in case of failure
-                batch_size=1000000, # 16777216,  # Maximum batch size in bytes (32mb)
-                linger_ms=1000,  # Wait up to 500 ms for more messages to accumulate in the batch
+                acks='all', # Ensure that all replicas acknowledge the message
+                retries=5,  # the number of retries in case of failure
+                batch_size=16777216,  # Maximum batch size in bytes (16mb)
+                linger_ms=10000,  # Wait up to 10s for more messages to accumulate in the batch
             )
             return producer
         except Exception as e:
@@ -54,27 +54,17 @@ def create_kafka_topic(topic_name, num_partitions=1, replication_factor=1):
                 logging.error("Max retries reached. Exiting.")
                 raise
 
-def send_batch(producer, messages):
+def send_batch(producer, data):
     try:
-        for message in messages:
-            #logging.info(message)
-            producer.send('temperature', message)
-        #producer.flush()
-        #logging.info("Batch sent successfully")
+         producer.send('temperature', data)
     except Exception as e:
-        logging.error(f"Error sending batch: {e}")
+        logging.error(f"Error sending data: {e}")
 
 # Check if the topic exists and create if not
 create_kafka_topic('temperature')
 
 # Create Kafka producer
 producer = create_kafka_producer()
-
-# Read the CSV file
-#dataframe = pd.read_csv()
-
-#batch_size = 5000
-#batch = []
 
 dataframe = pd.read_csv('/input/german_temperature_data_1996_2021_from_selected_weather_stations.csv', delimiter=",")
 
@@ -90,10 +80,8 @@ for index, row in dataframe_melted.iterrows():
         'station_id': station_id,
         'temperature': row['temperature']
     }
-    #batch.append(data)
-    #if len(batch) >= batch_size:
-    send_batch(producer, data)
-     #   batch = []
+
+    producer.send('temperature', data)
 
 if data:
      send_batch(producer, data)

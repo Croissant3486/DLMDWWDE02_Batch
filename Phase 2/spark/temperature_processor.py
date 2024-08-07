@@ -5,11 +5,11 @@ from pyspark.sql.window import Window
 import pyspark.sql.functions as F
 import logging
 import time
+import os
+import json
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-import os
-import json
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -17,13 +17,13 @@ logger = logging.getLogger(__name__)
 
 # Initialize Spark session
 spark = SparkSession.builder \
-    .appName("TemperatureAggregation") \
+    .appName("DataProcessingService") \
     .getOrCreate()
 
 logger.info("Spark session started.")
 
-logger.info("Spark forced delay.")
-time.sleep(30)
+logger.info("Spark startup delay.")
+time.sleep(60)
 
 # Define schema for JSON data
 schema = StructType([
@@ -31,13 +31,6 @@ schema = StructType([
     StructField("station_id", IntegerType(), True),
     StructField("temperature", FloatType(), True)
 ])
-
-# Define the mode function using window functions
-def get_mode(df, group_by_cols, value_col):
-    mode_df = df.groupBy(group_by_cols + [value_col]).agg(count('*').alias('count'))
-    window = Window.partitionBy(group_by_cols).orderBy(F.desc('count'), F.desc(value_col))
-    mode_df = mode_df.withColumn('rank', F.rank().over(window)).filter(col('rank') == 1).drop('rank')
-    return mode_df.select(group_by_cols + [col(value_col).alias('mode_temperature')])
 
 # Offset tracking functions
 OFFSET_FILE_PATH = "/tmp/offsets.json"
@@ -54,33 +47,50 @@ def save_offsets(offsets):
     with open(OFFSET_FILE_PATH, 'w') as f:
         json.dump(offsets, f)
 
-# Read from Kafka with offset tracking
-def read_from_kafka():
-    offsets = read_offsets()
-    df = spark.read \
-        .format("kafka") \
-        .option("kafka.bootstrap.servers", "kafka:9092") \
-        .option("subscribe", "temperature") \
-        .option("startingOffsets", json.dumps(offsets)) \
-        .load()
-    
-    df = df.selectExpr("CAST(value AS STRING) as json", "partition", "offset") \
-        .select(from_json(col("json"), schema).alias("data"), "partition", "offset") \
-        .select("data.*", "partition", "offset")
-    
-    latest_offsets = df.groupBy("partition").agg(F.max("offset").alias("max_offset")).collect()
-    latest_offsets = {str(row["partition"]): row["max_offset"] + 1 for row in latest_offsets}
+# Define the mode function using window functions
+def get_mode(df, group_by_cols, value_col):
+    mode_df = df.groupBy(group_by_cols + [value_col]).agg(count('*').alias('count'))
+    window = Window.partitionBy(group_by_cols).orderBy(F.desc('count'), F.desc(value_col))
+    mode_df = mode_df.withColumn('rank', F.rank().over(window)).filter(col('rank') == 1).drop('rank')
+    return mode_df.select(group_by_cols + [col(value_col).alias('mode_temperature')])
 
-    return df, latest_offsets
+# Read from Kafka with offset tracking
+def read_from_kafka_with_retry(max_retries=5, retry_interval=10):
+    retries = 0
+    while retries < max_retries:
+        try:
+            offsets = read_offsets()
+            df = spark.read \
+                .format("kafka") \
+                .option("kafka.bootstrap.servers", "kafka:9092") \
+                .option("subscribe", "temperature") \
+                .option("startingOffsets", json.dumps(offsets)) \
+                .load()
+            
+            df = df.selectExpr("CAST(value AS STRING) as json", "partition", "offset") \
+                .select(from_json(col("json"), schema).alias("data"), "partition", "offset") \
+                .select("data.*", "partition", "offset")
+
+            latest_offsets = df.groupBy("partition").agg(F.max("offset").alias("max_offset")).collect()
+            latest_offsets = {str(row["partition"]): row["max_offset"] + 1 for row in latest_offsets}
+            return df, latest_offsets
+
+        except Exception as e:
+            logger.error(f"Error reading from Kafka: {e}")
+            retries += 1
+            logger.info(f"Retrying in {retry_interval} seconds... ({retries}/{max_retries})")
+            time.sleep(retry_interval)
+
+    raise RuntimeError("Failed to read from Kafka after multiple retries.")
 
 # Check for data and process in batches
 def process_data():
     try:
         counter = 0
-        while counter < 6:
-            df, latest_offsets = read_from_kafka()
+        while counter < 10:
+            df, latest_offsets = read_from_kafka_with_retry()
             saved_offsets = read_offsets().get("temperature", {})
-            
+
             if any(latest_offsets[partition] > saved_offsets.get(partition, 0) for partition in latest_offsets):
                 logger.info("Parsing data batch from Kafka.")
 
@@ -100,8 +110,6 @@ def process_data():
                 mode_df = get_mode(df, ["station_id", "year", "year_month"], "temperature")
                 monthly_aggregates = monthly_aggregates.join(mode_df, on=["station_id", "year", "year_month"], how="left")
 
-                logger.info("Monthly aggregates:")
-
                 # Save to HDFS as CSV
                 monthly_aggregates.write.mode('append').option("header", "true").csv('hdfs://namenode:8020/tmp/hadoop-root/dfs/data/processed_data.csv')
 
@@ -117,8 +125,9 @@ def process_data():
                 logger.info(f"No new data counter increased. Current: {counter}")
 
             logger.info("Sleeping to wait for new data.")
+ 
             time.sleep(10)  # Sleep to prevent continuous querying, adjust as needed
-            
+
         create_visualizations()
     except Exception as e:
         logger.error(f"Error in processing data: {e}")
@@ -140,7 +149,7 @@ def plot_aggregations(df: pd.DataFrame, year: str, station_id: str):
     df['median_temperature'] = df['median_temperature'].astype(float).round(1)
 
     plt.figure(figsize=(12, 8))
-    
+
     for metric, properties in metrics.items():
         sns.lineplot(
             data=df,
@@ -154,11 +163,11 @@ def plot_aggregations(df: pd.DataFrame, year: str, station_id: str):
 
     plt.title(f'Temperature Metrics in {year} (Station: {station_id})')
     plt.xlabel('Month')
-    plt.ylabel('Value')
+    plt.ylabel('Temperature')
     plt.xticks(rotation=45)
     plt.legend()
     plt.tight_layout()
-
+    
     #Lösung zum Speichern von Daten in HDFS
     #file_path = f'/tmp/average_temperature_per_{time_unit}.png'
     #plt.savefig(file_path)
@@ -177,13 +186,15 @@ def plot_aggregations(df: pd.DataFrame, year: str, station_id: str):
 # Convert Spark DataFrame to Pandas DataFrame for visualization
 def create_visualizations():
     aggregated_temperature_dataframe = spark.read.format("csv").option("header", "true").load("hdfs://namenode:8020/tmp/hadoop-root/dfs/data/processed_data.csv")
+    logger.info("Loaded aggregated data for visualization.")
+
     unique_years = aggregated_temperature_dataframe.select("year").distinct().collect()
     unique_years = [row["year"] for row in unique_years]
 
     for year in unique_years:
         unique_stations = aggregated_temperature_dataframe.filter(col("year") == year).select("station_id").distinct().collect()
         unique_stations = [row["station_id"] for row in unique_stations]
-        
+
         for station_id in unique_stations:
             yearly_data = aggregated_temperature_dataframe.filter((col("year") == year) & (col("station_id") == station_id)).toPandas()
             plot_aggregations(yearly_data, str(year), station_id)
@@ -191,4 +202,5 @@ def create_visualizations():
     logger.info("Visualizations created.")
     spark.stop()
 
+# Execute processing pipeline
 process_data()
