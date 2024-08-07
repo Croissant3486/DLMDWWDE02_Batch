@@ -19,10 +19,14 @@ Aufbau:
 
      Die Laufzeit der Batchverarbeitung inklusive der Visualisierung beträgt circa 85 Minuten. Diese wurde auf der folgende Hardware Konfiguration bestätigt:
 
-     CPU: Intel Core i5 13600K 
+     CPU: Intel Core i5 13600K
+
      RAM: 32GB DDR-5 6000 MT/s
+     
      GPU: Nvidia RTX 3080
+     
      OS: Windows 11 23H2
+     
      SSD: Samsung 990 PRO M.2 PCIe 4
 
      WICHTIG:
@@ -44,4 +48,4 @@ Aufbau:
        
      5. Nachdem der lokale "Output"-Ordner innerhalb des Repositories mit diversen *.png Dateien gefüllt ist, ist die Verarbeitung erfolgreich abgeschlossen. Die PNG Dateien enthalten die Aggregationen (Mean, Median, Mode) innerhalb eines Jahres der ausgewählten Wetterstationsnummer. Alle Werte können im Detail aus dem HDFS unter folgendem Link: http://localhost:9870/explorer.html#/tmp/hadoop-root/dfs/data/processed_data.csv ausgelesen werden.
 
-  3. Ordner "Phase 3"   
+  4. Ordner "Phase 3"   
