@@ -2,14 +2,13 @@
 
 Herzlich Willkommen zum GitHub Repository für die Batchprozessierungsaufgabe im Kurs DLMDWWDE02 (Data Engineering) der IU. In dieser README finden Sie einen Einstieg in die Struktur des Repositories und des Codes.
 
+##### Table of Contents 
 - [DLMDWWDE02_Batch](#dlmdwwde02_batch)
   * [Ordner Phase 1](#ordner-phase-1)
   * [Ordner Phase 2](#ordner-phase-2)
   * [Ordner Phase 3](#ordner-phase-3)
+  
 
-<!-- toc -->
-
-Aufbau:
 
 ## Ordner Phase 1
      
