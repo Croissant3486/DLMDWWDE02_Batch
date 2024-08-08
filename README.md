@@ -34,7 +34,7 @@ Aufbau:
   | SSD | Samsung 990 PRO M.2 PCIe 4 | 
   | OS | Windows 11 23H2 | 
 
-   WICHTIG:
+   `WICHTIG:`
      Um eine korrekte Ausführung des Code zu gewährleisten muss zunächst die ZIP-Datei im "Input" Ordner entpackt werden. Dies ist leider notwendig, da GitHub nur eine Upload Dateigröße von <100 MB zulässt.
 
   In diesem Repository befinden sich eine Docker Compose Datei für die Erstellung der drei Microservices. Für den Ingest wird ein "Kafka" Container verwendet, für die Prozessierung ein Spark Container und für die Persistierung ein HDFS Container. Die Inputdaten wurden bereits in Punkt 1. erwähnt. Der verarbeitete Output wird in einem HDFS gespeichert, welches über die URL: http://localhost:9870 erreichbar ist. Zur Erstellung der Container wurde die Docker-CLI sowie Docker Desktop verwendet.
