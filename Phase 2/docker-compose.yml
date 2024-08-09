@@ -89,7 +89,7 @@ services:
       - hdfs-network
 
   namenode:
-    image: apache/hadoop:3
+    image: apache/hadoop:3.3.6
     hostname: namenode
     command: hdfs namenode
     ports:
@@ -105,7 +105,7 @@ services:
       - ./hdfs:/hdfs
 
   datanode:
-    image: apache/hadoop:3
+    image: apache/hadoop:3.3.6
     command: [ "hdfs", "datanode" ]
     hostname: localhost
     ports:
@@ -118,7 +118,7 @@ services:
       - hdfs-network
 
   resourcemanager:
-    image: apache/hadoop:3
+    image: apache/hadoop:3.3.6
     hostname: resourcemanager
     command: [ "yarn", "resourcemanager" ]
     ports:
@@ -129,10 +129,25 @@ services:
       - hdfs-network
 
   nodemanager:
-    image: apache/hadoop:3
+    image: apache/hadoop:3.3.6
     command: [ "yarn", "nodemanager" ]
     env_file:
       - ./hdfs/config
+    networks:
+      - hdfs-network
+
+  hdfs-backup:
+    build: ./backups
+    container_name: hdfs_backup_service
+    volumes:
+      - ./backups/hdfs-backup:/backups/hdfs-backup  # Mount local directory for backups
+      - ./backups/scripts:/backup/scripts
+    depends_on:
+      - namenode
+      - datanode
+    environment:
+      - HDFS_PATH=hdfs://namenode:8020/tmp/hadoop-root/dfs/data/processed_data.csv  # Define HDFS path as an environment variable
+      - LOCAL_BACKUP_DIR=/backups/hdfs-backup # Local backup directory
     networks:
       - hdfs-network
 

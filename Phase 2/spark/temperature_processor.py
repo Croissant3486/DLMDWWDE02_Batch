@@ -88,7 +88,7 @@ def read_from_kafka_with_retry(max_retries=5, retry_interval=10):
 def process_data():
     try:
         counter = 0
-        while counter < 10:
+        while counter < 12:
             df, latest_offsets = read_from_kafka_with_retry()
             saved_offsets = read_offsets().get("temperature", {})
 
@@ -127,7 +127,7 @@ def process_data():
 
             logger.info("Sleeping to wait for new data.")
  
-            time.sleep(20)  # Sleep to prevent continuous querying, adjust as needed
+            time.sleep(10)  # Sleep to prevent continuous querying, adjust as needed
 
         create_visualizations()
     except Exception as e:

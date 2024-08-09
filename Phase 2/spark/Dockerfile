@@ -25,10 +25,6 @@ RUN /app/venv/bin/pip install --no-cache-dir -r /app/requirements.txt
 ENV PATH="/app/venv/bin:${PATH}"
 ENV SPARK_NO_DAEMONIZE=true
 
-# Set permissions for the Spark directories
-#RUN chmod -R 777 /opt/bitnami/spark/tmp
-#RUN chmod -R 777 /opt/bitnami/spark/conf
-
 # Set the working directory
 WORKDIR /app
 
