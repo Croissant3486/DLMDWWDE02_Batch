@@ -63,7 +63,7 @@ def read_from_kafka_with_retry(max_retries=5, retry_interval=10):
             offsets = read_offsets()
             df = spark.read \
                 .format("kafka") \
-                .option("kafka.bootstrap.servers", "kafka:9092") \
+                .option("kafka.bootstrap.servers", "kafka-broker:9092") \
                 .option("subscribe", "temperature") \
                 .option("startingOffsets", json.dumps(offsets)) \
                 .load()
