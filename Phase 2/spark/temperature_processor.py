@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 # Initialize Spark session
 spark = SparkSession.builder \
     .appName("DataProcessingService") \
+    .master("spark://spark-master:7077") \
     .getOrCreate()
 
 logger.info("Spark session started.")
@@ -126,7 +127,7 @@ def process_data():
 
             logger.info("Sleeping to wait for new data.")
  
-            time.sleep(10)  # Sleep to prevent continuous querying, adjust as needed
+            time.sleep(20)  # Sleep to prevent continuous querying, adjust as needed
 
         create_visualizations()
     except Exception as e:

@@ -40,6 +40,7 @@ services:
       - JAVA_HOME=/opt/bitnami/java
       - SPARK_MASTER_HOST=spark-master
       - SPARK_MASTER_PORT=7077
+      - MPLCONFIGDIR=/tmp/.matplotlib
     networks:
       - spark-network
     volumes:
@@ -52,24 +53,34 @@ services:
       - SPARK_MASTER_URL=spark://spark-master:7077
       - JAVA_HOME=/opt/bitnami/java
       - SPARK_EXECUTOR_MEMORY=4G
+      - SPARK_EXECUTOR_CORES=2
       - SPARK_WORKER_MEMORY=4G
       - SPARK_WORKER_CORES=4
-    volumes:
-      - ./spark:/spark
-    depends_on:
-      - spark-master
-    networks:
-      - spark-network
-
-  spark-submit:
-    build: ./spark
-    environment:
-      - SPARK_MASTER_URL=spark://spark-master:7077
+      - MPLCONFIGDIR=/tmp/.matplotlib
     volumes:
       - ./spark:/spark
       - ./output:/output
     depends_on:
       - spark-master
+      - kafka
+      - namenode
+    networks:
+      - spark-network
+      - kafka-network
+      - hdfs-network
+
+  spark-submit:
+    build: ./spark
+    environment:
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_USER=hadoop
+      - MPLCONFIGDIR=/tmp/.matplotlib
+    volumes:
+      - ./spark:/spark
+      - ./output:/output
+    depends_on:
+      - spark-master
+      - spark-worker
       - kafka
       - namenode
     networks:

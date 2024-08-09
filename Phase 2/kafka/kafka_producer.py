@@ -17,8 +17,8 @@ def create_kafka_producer():
                 value_serializer=lambda v: json.dumps(v).encode('utf-8'),
                 acks='all', # Ensure that all replicas acknowledge the message
                 retries=5,  # the number of retries in case of failure
-                batch_size=16777216,  # Maximum batch size in bytes (16mb)
-                linger_ms=10000,  # Wait up to 10s for more messages to accumulate in the batch
+                batch_size= 4194304, # Maximum batch size in bytes (4mb)
+                linger_ms=5000,  # Wait up to 5s for more messages to accumulate in the batch
             )
             return producer
         except Exception as e:
