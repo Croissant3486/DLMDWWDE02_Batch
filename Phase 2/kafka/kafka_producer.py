@@ -13,11 +13,11 @@ def create_kafka_producer():
     for i in range(max_retries):
         try:
             producer = KafkaProducer(
-                bootstrap_servers='kafka:9092',
+                bootstrap_servers='kafka-broker:9092',
                 value_serializer=lambda v: json.dumps(v).encode('utf-8'),
                 acks='all', # Ensure that all replicas acknowledge the message
                 retries=5,  # the number of retries in case of failure
-                batch_size= 1048576, # Maximum batch size in bytes (1mb)
+                batch_size= 1048576, # Maximum batch size in bytes (1MB)
                 linger_ms=5000,  # Wait up to 5s for more messages to accumulate in the batch
             )
             return producer
@@ -34,7 +34,7 @@ def create_kafka_topic(topic_name, num_partitions=1, replication_factor=1):
     max_retries = 5
     for i in range(max_retries):
         try:
-            admin_client = KafkaAdminClient(bootstrap_servers="kafka:9092", client_id='kafkaAdminClient')
+            admin_client = KafkaAdminClient(bootstrap_servers="kafka-broker:9092", client_id='kafkaAdminClient')
             topic_list = []
             topic_list.append(NewTopic(name=topic_name, num_partitions=num_partitions, replication_factor=replication_factor))
             admin_client.create_topics(new_topics=topic_list, validate_only=False)
@@ -88,41 +88,3 @@ if data:
 
 # Close the producer
 producer.close()
-
-# for chunk in pd.read_csv('/input/german_temperature_data_1996_2021_from_selected_weather_stations.csv', delimiter=",", chunksize=batch_size):
-
-#     # Melt the DataFrame to have station_id and temperature as separate columns also drop NaN values
-#     chunk_melted = chunk.melt(id_vars=['MESS_DATUM'], var_name='station_id', value_name='temperature')
-
-#     chunk_melted = chunk_melted.dropna()
-
-#     # Convert station_id to integer
-#     chunk_melted['station_id'] = chunk_melted['station_id'].astype(int)
-
-#     # Sort DataFrame by timestamp (no need to sort by station_id now)
-#     #dataframe_melted.sort_values(by=['MESS_DATUM'], inplace=True)
-
-#     # Initialize variables to manage batching
-#     batch = []
-
-#     # Iterate over the DataFrame rows
-#     for index, row in chunk_melted.iterrows():
-#         timestamp = row['MESS_DATUM']
-#         station_id = row['station_id']
-
-#         data = {
-#             'timestamp': timestamp,
-#             'station_id': station_id,
-#             'temperature': row['temperature']
-#         }
-#         batch.append(data)
-
-#         if len(batch) >= batch_size:
-#             send_batch(producer, batch)
-#             batch = []
-
-# Send any remaining messages in the batch
-# if batch:
-    # send_batch(producer, batch)
-# 
-#executor.shutdown(wait=True)

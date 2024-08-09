@@ -6,7 +6,7 @@ services:
     networks:
       - kafka-network
 
-  kafka:
+  kafka-broker:
     image: 'bitnami/kafka:latest'
     environment:
       - KAFKA_BROKER_ID=1
@@ -14,16 +14,16 @@ services:
       - ALLOW_PLAINTEXT_LISTENER=yes
       - KAFKA_LISTENER_NAME_PREFIX=PLAINTEXT://
       - KAFKA_LISTENERS=PLAINTEXT://0.0.0.0:9092
-      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka-broker:9092
     depends_on:
       - zookeeper
     networks:
       - kafka-network
 
-  producer:
+  kafka-producer:
     build: ./kafka
     depends_on:
-      - kafka
+      - kafka-broker
     volumes:
       - ./input:/input
       - ./kafka:/kafka
@@ -62,7 +62,7 @@ services:
       - ./output:/output
     depends_on:
       - spark-master
-      - kafka
+      - kafka-broker
       - namenode
     networks:
       - spark-network
@@ -81,7 +81,7 @@ services:
     depends_on:
       - spark-master
       - spark-worker
-      - kafka
+      - kafka-broker
       - namenode
     networks:
       - spark-network
@@ -140,7 +140,7 @@ services:
     build: ./backups
     container_name: hdfs_backup_service
     volumes:
-      - ./backups/hdfs-backup:/backups/hdfs-backup  # Mount local directory for backups
+      - ./backups/hdfs-backup:/backups/hdfs-backup
       - ./backups/scripts:/backup/scripts
     depends_on:
       - namenode

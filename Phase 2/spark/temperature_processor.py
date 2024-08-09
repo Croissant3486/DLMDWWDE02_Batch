@@ -127,7 +127,7 @@ def process_data():
 
             logger.info("Sleeping to wait for new data.")
  
-            time.sleep(10)  # Sleep to prevent continuous querying, adjust as needed
+            time.sleep(10)  # Sleep to prevent continuous querying
 
         create_visualizations()
     except Exception as e:
@@ -176,7 +176,7 @@ def plot_aggregations(df: pd.DataFrame, year: str, station_id: str):
     #proc_df = img_df.select(base64(col("image.data")).alias('encoded'))
     #proc_df.coalesce(1).write.mode('overwrite').format("text").save('hdfs://namenode:8020/tmp/hadoop-root/dfs/data/visuals'
 
-    #Da impraktikabel wird das Image zurück auf die local disk, in das output verzeichnis, geschrieben.
+    #Da impraktikabel wird das Image zurück auf die local disk, in das output-Verzeichnis, geschrieben.
     output_dir = f'/output/{station_id}/{year}'
     os.makedirs(output_dir, exist_ok=True)
     file_path = f'{output_dir}/temperature_metrics.png'

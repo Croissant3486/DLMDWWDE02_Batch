@@ -23,9 +23,6 @@ RUN python3 -m venv venv
 COPY requirements.txt /app/
 RUN . venv/bin/activate && pip install --no-cache-dir -r requirements.txt
 
-# Copy your Kafka producer script into the container
-#COPY ./kafka_producer.py /app/kafka_producer.py
-
 # Set the working directory
 WORKDIR /app
 
