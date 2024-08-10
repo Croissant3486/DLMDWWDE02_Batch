@@ -6,6 +6,7 @@ Herzlich Willkommen zum GitHub Repository für die Batchprozessierungsaufgabe im
 - [DLMDWWDE02_Batch](#dlmdwwde02_batch)
   * [Ordner Phase 1](#ordner-phase-1)
   * [Ordner Phase 2](#ordner-phase-2)
+    * [Anleitung](#anleitung)
     * [Erklärung der Unterordner](#erklärung-der-unterordner)
       * [backups](#backups)
       * [hdfs](#hdfs)
@@ -48,6 +49,7 @@ Herzlich Willkommen zum GitHub Repository für die Batchprozessierungsaufgabe im
 
   Der Spark-Service beginnt 120 Sekunden nachdem der Kafka Producer aufgehört hat neue Daten zu übermitteln die aggregierten Daten aus dem HDFS zu visualieren. Danach beendeten sich der Spark Service von selbst. Sind alle Daten aus dem HDFS verabeitet und visualisiert worden, so können diese im "Output" Ordner des heruntergeladenen Repos angeschaut werden.
 
+### Anleitung
   Anleitung zur erfolgreichen Batchverarbeitung der Daten (sofern Docker inkl. Docker-Compose installiert sind):
 
   1. Klonen des Git Repositories in ein lokales Verzeichnis.
