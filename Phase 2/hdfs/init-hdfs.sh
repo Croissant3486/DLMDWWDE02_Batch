@@ -15,6 +15,8 @@ echo "Creating HDFS directories..."
 /usr/bin/hdfs dfs -chown hdfsaccess:hdfsaccess /user/hdfsaccess
 
 echo "Setting ACLs for / and /tmp/hadoop-root/dfs/data..."
-/usr/bin/hdfs dfs -setfacl -R -m user:hdfsaccess:rw /
-/usr/bin/hdfs dfs -setfacl -R -m user:hdfsaccess:rwx /tmp/hadoop-root/dfs/data
-
+hdfs dfs -setfacl -R -m user:hdfsaccess:r /
+hdfs dfs -setfacl -R -m user:hdfsaccess:r /tmp
+hdfs dfs -setfacl -R -m user:hdfsaccess:r /tmp/hadoop-root
+hdfs dfs -setfacl -R -m user:hdfsaccess:r /tmp/hadoop-root/dfs
+hdfs dfs -setfacl -R -m user:hdfsaccess:rwx /tmp/hadoop-root/dfs/data
