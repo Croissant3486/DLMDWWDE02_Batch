@@ -88,7 +88,7 @@ Ist hier nur mit einem Platzhalter gefüllt, damit GitHub diesen Ordner ins Repo
 
 #### spark
 
-Enthält alle Konfigurationsdateien sowie die Spark Service, für das Projekt.
+Enthält alle Konfigurationsdateien sowie den PySpark Service für das Projekt.
 
 ### Weitere Informationen
 Das GitHub Repo beinhaltet noch eine zweite Branch mit dem Namen "Security". In dieser werden Einstellung zur sicheren Übertragung per SSL und ACLs für das HDFS konfiguriert. Dies wird hier nur Beispielhaft dargestellt, da man für eine echte Security, echte Zertifikate erstellen müsste, welche den Rahmen der Umsetzung sprengen würden. Auch ist das setzen der ACLs nicht direkt über Docker-Compose möglich, weshalb in diesem Fall davon abgesehen wird. Dennoch ist der Zugriff auf bestimmte User (z.B. hadoop) beschränkt und es kann nicht jeder alles tun. Der Web-User des HDFS kann bspw. nur Daten einsehen, aber nicht verändern, löschen oder anlegen. Die "main" Branch ist somit die, die für die Reproduzierbarkeit der Ergebnisse verwendet werden sollte.
