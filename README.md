@@ -6,6 +6,14 @@ Herzlich Willkommen zum GitHub Repository für die Batchprozessierungsaufgabe im
 - [DLMDWWDE02_Batch](#dlmdwwde02_batch)
   * [Ordner Phase 1](#ordner-phase-1)
   * [Ordner Phase 2](#ordner-phase-2)
+    * [Erklärung der Unterordner](#erklärung-der-unterordner)
+      * [backups](#backups)
+      * [hdfs](#hdfs)
+      * [input](#input)
+      * [kafka](#kafka)
+      * [output](#output)
+      * [spark](#spark)
+    * [Weitere Informationen](#weitere-informationen)
   * [Ordner Phase 3](#ordner-phase-3)
   
 
@@ -42,16 +50,47 @@ Herzlich Willkommen zum GitHub Repository für die Batchprozessierungsaufgabe im
 
   Anleitung zur erfolgreichen Batchverarbeitung der Daten (sofern Docker inkl. Docker-Compose installiert sind):
 
-  1. Die ZIP-Datei unter folgendem Pfad im selbigen Ordner entpacken: "input\german_temperature_data_1996_2021_from_selected_weather_stations.zip" => "input\german_temperature_data_1996_2021_from_selected_weather_stations.csv"
+  1. Klonen des Git Repositories in ein lokales Verzeichnis.
 
-  2. Per beliebigem Commandline Tool im administrativen Kontext zum Ordner "Phase 2" navigieren.
+  2. Die ZIP-Datei unter folgendem Pfad im selbigen Ordner entpacken: "input\german_temperature_data_1996_2021_from_selected_weather_stations.zip" => "input\german_temperature_data_1996_2021_from_selected_weather_stations.csv"
+
+  3. Per beliebigem Commandline Tool im administrativen Kontext zum Ordner "Phase 2" navigieren.
     
-  3. Ausführen der Kommandozeile "docker-compose up --always-recreate-deps --detach --force-recreate"
+  4. Ausführen der Kommandozeile "docker-compose up --always-recreate-deps --detach --force-recreate"
     
-  4. Warten bis die Verarbeitung abgeschlossen ist (dies dauert etwa 80 Minuten, siehe oben).
+  5. Warten bis die Verarbeitung abgeschlossen ist (dies dauert etwa 80 Minuten, siehe oben).
        
-  5. Nachdem der lokale "Output"-Ordner innerhalb des Repositories mit diversen *.png Dateien gefüllt ist, ist die Verarbeitung erfolgreich abgeschlossen. Die PNG-Dateien enthalten die Aggregationen (Mean, Median, Mode) innerhalb eines Jahres der ausgewählten Wetterstationsnummer. Alle Werte können im Detail aus dem HDFS unter folgendem Link: http://localhost:9870/explorer.html#/tmp/hadoop-root/dfs/data/processed_data.csv heruntergeladen und ausgelesen werden.
+  6. Nachdem der lokale "Output"-Ordner innerhalb des Repositories mit diversen *.png Dateien gefüllt ist, ist die Verarbeitung erfolgreich abgeschlossen. Die PNG-Dateien enthalten die Aggregationen (Mean, Median, Mode) innerhalb eines Jahres der ausgewählten Wetterstationsnummer. Alle Werte können im Detail aus dem HDFS unter folgendem Link: http://localhost:9870/explorer.html#/tmp/hadoop-root/dfs/data/processed_data.csv heruntergeladen und ausgelesen werden.
 
+
+### Erklärung der Unterordner
+Hier finden Sie eine Kurzbeschreibung der Inhalte der Unterordner des Projekts "Phase 2".
+
+#### backups
+
+Dieser Ordner enthält alle Konfigurationen für den HDFS Backup Container.
+
+#### hdfs
+
+Enthält die Konfiguration für die diversen HDFS Container aus der docker-compose.yml.
+
+#### input
+
+Enthält die Input Daten für die Batchverarbeitung, hier als ZIP Datei, da GitHub keine größeren Dateien akzeptiert. Bitte beachten Sie hierfür Punkt 2. der Installationsanleitung.
+
+#### kafka
+
+Hier liegen der Kafka Producer, die benötigten dependencies und das Dockerfile für die Custom Konfiguration.
+
+#### output
+
+Ist hier nur mit einem Platzhalter gefüllt, damit GitHub diesen Ordner ins Repo aufnimmt. Enthält nach der Verarbeitung > 1000 Visualisierungen der einzelnen Wetterstation von 1996-2021.
+
+#### spark
+
+Enthält alle Konfigurationsdateien sowie die Spark Service, für das Projekt.
+
+### Weitere Informationen
 Das GitHub Repo beinhaltet noch eine zweite Branch mit dem Namen "Security". In dieser werden Einstellung zur sicheren Übertragung per SSL und ACLs für das HDFS konfiguriert. Dies wird hier nur Beispielhaft dargestellt, da man für eine echte Security, echte Zertifikate erstellen müsste, welche den Rahmen der Umsetzung sprengen würden. Auch ist das setzen der ACLs nicht direkt über Docker-Compose möglich, weshalb in diesem Fall davon abgesehen wird. Dennoch ist der Zugriff auf bestimmte User (z.B. hadoop) beschränkt und es kann nicht jeder alles tun. Der Web-User des HDFS kann bspw. nur Daten einsehen, aber nicht verändern, löschen oder anlegen. Die "main" Branch ist somit die, die für die Reproduzierbarkeit der Ergebnisse verwendet werden sollte.
 
 ## Ordner Phase 3
