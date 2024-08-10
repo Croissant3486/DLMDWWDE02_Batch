@@ -84,7 +84,7 @@ Hier liegen der Kafka Producer, die benötigten dependencies und das Dockerfile 
 
 #### output
 
-Ist hier nur mit einem Platzhalter gefüllt, damit GitHub diesen Ordner ins Repo aufnimmt. Enthält nach der Verarbeitung > 1000 Visualisierungen der einzelnen Wetterstationen von 1996-2021.
+Ist mit einer Beispieldatei gefüllt, um die Visualisierung der Temperatur Aggregationen darzustellen und damit GitHub diesen Ordner ins Repo aufnimmt. Enthält nach der Verarbeitung > 1000 Visualisierungen der einzelnen Wetterstationen von 1996-2021.
 
 #### spark
 
