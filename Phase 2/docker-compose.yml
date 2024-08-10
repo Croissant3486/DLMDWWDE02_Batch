@@ -98,7 +98,6 @@ services:
     env_file:
       - ./hdfs/config
     environment:
-      - HADOOP_HOME=/opt/hadoop-3.3.6
       - ENSURE_NAMENODE_DIR=/tmp/hadoop-root/dfs/name
     networks:
       - hdfs-network
@@ -114,7 +113,6 @@ services:
     env_file:
       - ./hdfs/config
     environment:
-      - HADOOP_HOME=/opt/hadoop-3.3.6
       - SERVICE_PRECONDITION="namenode:9870"
     networks:
       - hdfs-network
@@ -140,7 +138,7 @@ services:
 
   hdfs-backup:
     build: ./backups
-    container_name: hdfs_backup_service
+    container_name: hdfs-backup-service
     volumes:
       - ./backups/hdfs-backup:/backups/hdfs-backup
       - ./backups/scripts:/backup/scripts
