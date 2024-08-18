@@ -1,6 +1,7 @@
 services:
   zookeeper:
     image: 'bitnami/zookeeper:latest'
+    container_name: zookeeper
     environment:
       - ALLOW_ANONYMOUS_LOGIN=yes
     networks:
@@ -8,6 +9,7 @@ services:
 
   kafka-broker:
     image: 'bitnami/kafka:latest'
+    container_name: kafka-broker
     environment:
       - KAFKA_BROKER_ID=1
       - KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181
@@ -22,6 +24,7 @@ services:
 
   kafka-producer:
     build: ./kafka
+    container_name: kafka-producer
     depends_on:
       - kafka-broker
     volumes:
@@ -32,6 +35,7 @@ services:
 
   spark-master:
     image: bitnami/spark:latest
+    container_name: spark-master
     ports:
       - "8080:8080"
       - "7077:7077"
@@ -40,7 +44,7 @@ services:
       - JAVA_HOME=/opt/bitnami/java
       - SPARK_MASTER_HOST=spark-master
       - SPARK_MASTER_PORT=7077
-      - MPLCONFIGDIR=/tmp/.matplotlib
+      - SPARK_MASTER_OPTS=-Dspark.deploy.defaultCores=2
     networks:
       - spark-network
     volumes:
@@ -48,15 +52,34 @@ services:
 
   spark-worker:
     image: bitnami/spark:latest
+    container_name: spark-worker-1
     environment:
       - SPARK_MODE=worker
       - SPARK_MASTER_URL=spark://spark-master:7077
       - JAVA_HOME=/opt/bitnami/java
-      - SPARK_EXECUTOR_MEMORY=4G
-      - SPARK_EXECUTOR_CORES=2
-      - SPARK_WORKER_MEMORY=4G
-      - SPARK_WORKER_CORES=4
-      - MPLCONFIGDIR=/tmp/.matplotlib
+      - SPARK_WORKER_MEMORY=2G
+      - SPARK_WORKER_CORES=2  
+    volumes:
+      - ./spark:/spark
+      - ./output:/output
+    depends_on:
+      - spark-master
+      - kafka-broker
+      - namenode
+    networks:
+      - spark-network
+      - kafka-network
+      - hdfs-network
+
+  spark-worker-2:
+    image: bitnami/spark:latest
+    container_name: spark-worker-2
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - JAVA_HOME=/opt/bitnami/java
+      - SPARK_WORKER_MEMORY=2G
+      - SPARK_WORKER_CORES=2  
     volumes:
       - ./spark:/spark
       - ./output:/output
@@ -71,10 +94,10 @@ services:
 
   spark-submit:
     build: ./spark
+    container_name: spark-submit-service
     environment:
       - SPARK_MASTER_URL=spark://spark-master:7077
       - SPARK_USER=hadoop
-      - MPLCONFIGDIR=/tmp/.matplotlib
     volumes:
       - ./spark:/spark
       - ./output:/output
@@ -90,7 +113,11 @@ services:
 
   visualization-service:
     build: ./visuals
+    container_name: visualization-service
     environment:
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - JAVA_HOME=/opt/bitnami/java
+      - SPARK_USER=hadoop
       - MPLCONFIGDIR=/tmp/.matplotlib
     volumes:
       - ./output:/output
@@ -107,6 +134,7 @@ services:
 
   namenode:
     image: apache/hadoop:3.3.6
+    container_name: namenode
     hostname: namenode
     command: hdfs namenode
     ports:
@@ -123,6 +151,7 @@ services:
 
   datanode:
     image: apache/hadoop:3.3.6
+    container_name: datanode
     command: [ "hdfs", "datanode" ]
     hostname: localhost
     ports:
@@ -136,6 +165,7 @@ services:
 
   resourcemanager:
     image: apache/hadoop:3.3.6
+    container_name: resorucemanager
     hostname: resourcemanager
     command: [ "yarn", "resourcemanager" ]
     ports:
@@ -147,6 +177,7 @@ services:
 
   nodemanager:
     image: apache/hadoop:3.3.6
+    container_name: nodemanager
     command: [ "yarn", "nodemanager" ]
     env_file:
       - ./hdfs/config

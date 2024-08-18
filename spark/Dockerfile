@@ -28,4 +28,4 @@ WORKDIR /app
 USER hadoop
 
 # Set the entry point to run the Spark script
-ENTRYPOINT ["spark-submit", "--master", "spark://spark-master:7077", "--deploy-mode", "client", "--packages", "org.apache.spark:spark-sql-kafka-0-10_2.12:3.4.1",  "--conf",  "spark.jars.ivy=/tmp", "/spark/temperature_processor.py"]
+ENTRYPOINT ["spark-submit", "--master", "spark://spark-master:7077", "--deploy-mode", "client", "--packages", "org.apache.spark:spark-sql-kafka-0-10_2.12:3.4.1", "--conf", "spark.jars.ivy=/tmp", "/spark/temperature_processor.py"]

@@ -32,7 +32,7 @@ schema = StructType([
 ])
 
 # Offset tracking functions
-OFFSET_FILE_PATH = "/tmp/offsets.json"
+OFFSET_FILE_PATH = "/output/offsets.json"
 
 def read_offsets():
     if os.path.exists(OFFSET_FILE_PATH):

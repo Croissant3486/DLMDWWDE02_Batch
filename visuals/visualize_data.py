@@ -1,67 +1,106 @@
 import logging
 import time
 import os
+import json
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-from confluent_kafka import Consumer, KafkaError
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import col, from_json
+from pyspark.sql.types import StructType, StructField, IntegerType, FloatType, TimestampType
+import pyspark.sql.functions as F
+
+# Offset file path
+OFFSET_FILE_PATH = "/output/offsets.json"
+Process_Finished_Once = False
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Kafka Configuration
-KAFKA_TOPIC = "temperature"
-KAFKA_CONF = {
-    'bootstrap.servers': 'kafka-broker:9092',  
-    'group.id': 'temperature-consumer-group',
-    'auto.offset.reset': 'latest'
-}
-TIMEOUT_DURATION = 120  # 120 seconds
+# Initialize Spark session
+spark = SparkSession.builder \
+    .appName("DataVisualizationService") \
+    .master("spark://spark-master:7077") \
+    .getOrCreate()
 
-logger.info("Visualization Service startup delay.")
+logger.info("Spark session started.")
+
+logger.info("Visualization startup delay.")
 time.sleep(60)
 
+# Function to read offsets from a file
+def read_offsets():
+    if os.path.exists(OFFSET_FILE_PATH):
+        with open(OFFSET_FILE_PATH, 'r') as f:
+            offsets = json.load(f)
+    else:
+        offsets = {"temperature": {"0": 0}}  # Default offset if no file exists
+    return offsets
 
-# Function to monitor Kafka for new data and ensure inactivity for 120 seconds
+# Define schema for JSON data
+schema = StructType([
+    StructField("timestamp", TimestampType(), True),
+    StructField("station_id", IntegerType(), True),
+    StructField("temperature", FloatType(), True)
+])
+
+# Read from Kafka with offset tracking
+def read_from_kafka_with_retry(max_retries=5, retry_interval=10):
+    retries = 0
+    while retries < max_retries:
+        try:
+            offsets = read_offsets()
+            df = spark.read \
+                .format("kafka") \
+                .option("kafka.bootstrap.servers", "kafka-broker:9092") \
+                .option("subscribe", "temperature") \
+                .option("startingOffsets", json.dumps(offsets)) \
+                .load()
+            
+            df = df.selectExpr("CAST(value AS STRING) as json", "partition", "offset") \
+                .select(from_json(col("json"), schema).alias("data"), "partition", "offset") \
+                .select("data.*", "partition", "offset")
+
+            latest_offsets = df.groupBy("partition").agg(F.max("offset").alias("max_offset")).collect()
+            latest_offsets = {str(row["partition"]): row["max_offset"] + 1 for row in latest_offsets}
+            return latest_offsets
+
+        except Exception as e:
+            logger.error(f"Error reading from Kafka: {e}")
+            retries += 1
+            logger.info(f"Retrying in {retry_interval} seconds... ({retries}/{max_retries})")
+            time.sleep(retry_interval)
+
+    raise RuntimeError("Failed to read from Kafka after multiple retries.")
+
+# Function to monitor Kafka for new data and ensure inactivity for a specified duration
 def monitor_kafka_for_data_and_inactivity():
-    consumer = Consumer(KAFKA_CONF)
-    consumer.subscribe([KAFKA_TOPIC])
+    counter = 0
+    try: 
+        while counter < 12:
+            latest_offsets = read_from_kafka_with_retry()
+            saved_offsets = read_offsets().get("temperature", {})
+
+            if any(latest_offsets[partition] > saved_offsets.get(partition, 0) for partition in latest_offsets):
+                counter = 0
+                logger.info("new data found.")
+            else:    
+                if any(latest_offsets[partition] <= saved_offsets.get(partition, 0) for partition in latest_offsets) and Process_Finished_Once == True:
+                    logger.info(f"No new data found and has not changed.")    
+                    counter = 0
+                else:
+                    counter += 1
+                    logger.info(f"No new data found. Current: {counter}")
+
+            logger.info("Sleeping to wait for new data.")
     
-    new_data_detected = False
-    inactivity_timer_started = False
-    inactivity_start_time = None
-    
-    try:
-        while True:
-            msg = consumer.poll(timeout=5000)  # Poll for messages with a 5-second timeout
-            
-            if msg is None:  # No message received in this poll
-                if new_data_detected:
-                    # If new data was detected earlier, start checking for inactivity
-                    if not inactivity_timer_started:
-                        inactivity_timer_started = True
-                        inactivity_start_time = time.time()
-                        logger.info("No new data. Starting inactivity timer.")
-                    elif time.time() - inactivity_start_time >= TIMEOUT_DURATION:
-                        # 120 seconds of inactivity after new data was detected
-                        logger.info("120 seconds of inactivity detected. Triggering visualization.")
-                        return True  # Trigger visualization process
-                continue
-            
-            if not msg.error():
-                logger.info("New data received on Kafka topic.")
-                new_data_detected = True
-                inactivity_timer_started = False  # Reset inactivity check
-            elif msg.error().code() == KafkaError._PARTITION_EOF:
-                continue  # Reached end of partition; no new messages
-            else:
-                logger.error(f"Error: {msg.error()}")
-                break  # Break on error
-    finally:
-        consumer.close()
-    
-    return False
+            time.sleep(10)  # Sleep to prevent continuous querying
+
+        return True
+    except Exception as e:
+        logger.error(f"Error in visualizing data: {e}")
+
 
 # Visualization function with explicit color and style for each metric
 def plot_aggregations(df: pd.DataFrame, year: str, station_id: str):
@@ -108,19 +147,19 @@ def plot_aggregations(df: pd.DataFrame, year: str, station_id: str):
 
 # Function to create visualizations after inactivity
 def create_visualizations():
-    # Load the data from CSV directly to Pandas
-    aggregated_temperature_dataframe = pd.read_csv("hdfs://namenode:8020/tmp/hadoop-root/dfs/data/processed_data.csv")
+    aggregated_temperature_dataframe = spark.read.format("csv").option("header", "true").load("hdfs://namenode:8020/tmp/hadoop-root/dfs/data/processed_data.csv")
     logger.info("Loaded aggregated data for visualization.")
 
-    unique_years = aggregated_temperature_dataframe['year'].unique()
+    unique_years = aggregated_temperature_dataframe.select("year").distinct().collect()
+    unique_years = [row["year"] for row in unique_years]
 
     for year in unique_years:
-        yearly_data = aggregated_temperature_dataframe[aggregated_temperature_dataframe['year'] == year]
-        unique_stations = yearly_data['station_id'].unique()
+        unique_stations = aggregated_temperature_dataframe.filter(col("year") == year).select("station_id").distinct().collect()
+        unique_stations = [row["station_id"] for row in unique_stations]
 
         for station_id in unique_stations:
-            station_data = yearly_data[yearly_data['station_id'] == station_id]
-            plot_aggregations(station_data, str(year), station_id)
+            yearly_data = aggregated_temperature_dataframe.filter((col("year") == year) & (col("station_id") == station_id)).toPandas()
+            plot_aggregations(yearly_data, str(year), station_id)
 
     logger.info("Visualizations created.")
 
@@ -132,5 +171,8 @@ if __name__ == "__main__":
         # Monitor Kafka for new data followed by 120 seconds of inactivity
         if monitor_kafka_for_data_and_inactivity():
             create_visualizations()
-        
+    
+        Process_Finished_Once = True
+        logger.info(f'"Process_Finished_Once: " {Process_Finished_Once}')
+        time.sleep(1200)
         logger.info("Restarting monitoring process.")
