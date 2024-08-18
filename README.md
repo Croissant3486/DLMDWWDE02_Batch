@@ -53,7 +53,7 @@ Alle Microservices laufen kontinuierlich und warten auf neue Inputs. Entsprechen
        
   6. Nachdem der lokale "Output"-Ordner innerhalb des Repositories mit diversen *.png Dateien gefüllt ist, ist die aktuelle Verarbeitung erfolgreich abgeschlossen. Die PNG-Dateien enthalten die Aggregationen (Mean, Median, Mode) innerhalb eines Jahres der ausgewählten Wetterstationsnummer. Alle Werte können im Detail aus dem HDFS unter folgendem Link: http://localhost:9870/explorer.html#/tmp/hadoop-root/dfs/data/processed_data.csv heruntergeladen und ausgelesen werden.
 
-  7. Werden Daten im Inputverzeichnis angepasst / verändert beginnt der gesamte Verarbeitungsprozess erneut.
+  7. Werden Daten im Inputverzeichnis angepasst / verändert und der Kafka Producer Container neugestartet, dann beginnt der gesamte Verarbeitungsprozess erneut.
 
 
 ## Erklärung der Unterordner
