@@ -4,8 +4,6 @@ Herzlich Willkommen zum GitHub Repository für die Batchprozessierungsaufgabe im
 
 ##### Table of Contents 
 - [DLMDWWDE02_Batch](#dlmdwwde02_batch)
-  * [Ordner Phase 1](#ordner-phase-1)
-  * [Ordner Phase 2](#ordner-phase-2)
     * [Anleitung](#anleitung)
     * [Erklärung der Unterordner](#erklärung-der-unterordner)
       * [backups](#backups)
@@ -14,24 +12,13 @@ Herzlich Willkommen zum GitHub Repository für die Batchprozessierungsaufgabe im
       * [kafka](#kafka)
       * [output](#output)
       * [spark](#spark)
+      * [visuals](#visuals)
     * [Weitere Informationen](#weitere-informationen)
-  * [Ordner Phase 3](#ordner-phase-3)
+
+
+  Diese Repository enthält alle Dokumente des Batch-Prozessierungsprojekts.
   
-
-
-## Ordner Phase 1
-     
-   Enthält alle Dokumente der "Konzeptionsphase". Darunter zählen das Flowchart zur geplanten Datenarchitektur, sowie eine kurze Diskussion zu den eingesetzen Elementen inklusive Berücksichtigung von Verfügbarkeit (reliability), Skalierbarkeit (scalability), Wartbarkeit (maintainability), Datensicherheit, Datenschutz und Data Governance.
-
-  Die zu prozessierenden Datensätze basieren auf mehr als 1.000.000 gemessenen Temperaturdaten von deutschen Wetterstationen der Jahre 1996-2021 (https://www.kaggle.com/datasets/matthiaskleine/german-temperature-data-1990-2021/data). Um Prognosen zur Temperaturentwicklung in Deutschland in den nächsten Jahren mittels Machine Learning zu ermöglichen, müssen diese Datensätze verarbeitet, bereinigt und aggregiert werden. Alle beschriebenen Komponenten werden als Microservices implementiert. Um eine Isolation unter den Diensten sicherzustellen sowie eine erhöhte Ausfallsicherheit/Wartbarkeit zu gewährleisten, sollen alle Microservices in separaten Docker Containern laufen.
-      
-## Ordner Phase 2
-
-  Enthält alle Dokumente der "Erarbeitungs-/Reflexionsphase". Der gesamte Code wird in diesem GitHub Repository veröffentlicht und so erstellt, dass dieser Reproduzierbar ist. Es wird bei der Implementation darauf geachtet, dass alle Elemente die in der "Konzeptionsphase" erarbeitet worden sind in diesem Abschnitt Anwendung finden.
-
-
   Die Laufzeit der Batchverarbeitung inklusive der Visualisierung beträgt circa 80 Minuten. Diese wurde auf der folgende Hardware Konfiguration bestätigt:
-
 
 
   | Hardwarekomponente | Bezeichnung | 
@@ -45,11 +32,11 @@ Herzlich Willkommen zum GitHub Repository für die Batchprozessierungsaufgabe im
    `WICHTIG:`
      Um eine korrekte Ausführung des Code zu gewährleisten muss zunächst die ZIP-Datei im "Input" Ordner entpackt werden. Dies ist leider notwendig, da GitHub nur eine Upload Dateigröße von <100 MB zulässt.
 
-  In diesem Repository befinden sich eine Docker Compose Datei für die Erstellung der drei Microservices. Für den Ingest wird ein "Kafka" Container verwendet, für die Prozessierung ein Spark Container und für die Persistierung ein HDFS Container. Die Inputdaten wurden bereits in Punkt 1. erwähnt. Der verarbeitete Output wird in einem HDFS gespeichert, welches über die URL: http://localhost:9870 erreichbar ist. Zur Erstellung der Container wurde die Docker-CLI sowie Docker Desktop verwendet.
+  In diesem Repository befinden sich eine Docker Compose Datei für die Erstellung der vier Microservices. Für den Ingest wird ein "Kafka" Container verwendet, für die Prozessierung ein Spark Container, für die Persistierung ein HDFS Container und für die Visualisierung ein Python Container. Die zu prozessierenden Input-Datensätze basieren auf mehr als 1.000.000 gemessenen Temperaturdaten von deutschen Wetterstationen der Jahre 1996-2021 (https://www.kaggle.com/datasets/matthiaskleine/german-temperature-data-1990-2021/data). Der verarbeitete Output wird in einem HDFS gespeichert, welches über die URL: http://localhost:9870 erreichbar ist. Ein Visualiserungsmicroservice sorgt dafür, dass nachdem keine weiteren zu verarbeitenden Datensätze mehr in die Kafka Topic "Temperature" geschrieben werden Graphen auf Basis des Jahres und der Wetterstation erzeugt sowie in den Ordner "Output" geschrieben werden. Zur Erstellung der Container wurde die Docker-CLI sowie Docker Desktop verwendet.
 
-  Der Spark-Service beginnt 120 Sekunden nachdem der Kafka Producer aufgehört hat neue Daten zu übermitteln die aggregierten Daten aus dem HDFS zu visualieren. Danach beendeten sich der Spark Service von selbst. Sind alle Daten aus dem HDFS verabeitet und visualisiert worden, so können diese im "Output" Ordner des heruntergeladenen Repos angeschaut werden.
+  Der Visualisierungs-Service beginnt 120 Sekunden nachdem der Kafka Producer aufgehört hat neue Daten an die Topic zu übermitteln die aggregierten Daten aus dem HDFS zu visualisieren. Danach wartet dieser solange bis erneut Datensätze in die Topic geschrieben werden und fängt nach dem gesetzten Timeout von 120 Sekunden ebenfalls wieder an diese zu visualisieren. Sind alle Daten aus dem HDFS (zum Zeitpunkt des Timeout Triggers) verabeitet und visualisiert worden, so können diese im "Output" Ordner des heruntergeladenen Repos angeschaut werden. Der Timeout zur Visualisierung der Daten ist sinnvoll, da die aggregierten Metriken über den Verlauf eines Jahres dargestellt werden sollen. Würde der Service kontinuierlich visualisieren, so würden die Graphen entweder ständig überschrieben werden, was unperformant ist oder unvollständig sein, was für eine Visualisierung ebenfalls unbrauchbar ist.
 
-### Anleitung
+## Anleitung
   Anleitung zur erfolgreichen Batchverarbeitung der Daten (sofern Docker inkl. Docker-Compose installiert sind):
 
   1. Klonen des Git Repositories in ein lokales Verzeichnis.
@@ -65,36 +52,37 @@ Herzlich Willkommen zum GitHub Repository für die Batchprozessierungsaufgabe im
   6. Nachdem der lokale "Output"-Ordner innerhalb des Repositories mit diversen *.png Dateien gefüllt ist, ist die Verarbeitung erfolgreich abgeschlossen. Die PNG-Dateien enthalten die Aggregationen (Mean, Median, Mode) innerhalb eines Jahres der ausgewählten Wetterstationsnummer. Alle Werte können im Detail aus dem HDFS unter folgendem Link: http://localhost:9870/explorer.html#/tmp/hadoop-root/dfs/data/processed_data.csv heruntergeladen und ausgelesen werden.
 
 
-### Erklärung der Unterordner
+## Erklärung der Unterordner
 Hier finden Sie eine Kurzbeschreibung der Inhalte der Unterordner des Projekts "Phase 2".
 
-#### backups
+### backups
 
 Dieser Ordner enthält alle Konfigurationen für den HDFS Backup Container.
 
-#### hdfs
+### hdfs
 
 Enthält die Konfiguration für die diversen HDFS Container aus der docker-compose.yml.
 
-#### input
+### input
 
 Enthält die Input Daten für die Batchverarbeitung, hier als ZIP Datei, da GitHub keine größeren Dateien akzeptiert. Bitte beachten Sie hierfür Punkt 2. der Installationsanleitung.
 
-#### kafka
+### kafka
 
 Hier liegen der Kafka Producer, die benötigten dependencies und das Dockerfile für die Custom Konfiguration.
 
-#### output
+### output
 
-Ist mit einer Beispieldatei gefüllt, um die Visualisierung der Temperatur Aggregationen darzustellen und damit GitHub diesen Ordner ins Repo aufnimmt. Enthält nach der Verarbeitung > 1000 Visualisierungen der einzelnen Wetterstationen von 1996-2021.
+Ist mit einer Beispieldatei (beispiel.png) gefüllt, um die Visualisierung der Temperatur Aggregationen darzustellen und damit GitHub diesen Ordner ins Repo aufnimmt. Enthält nach der Verarbeitung > 1000 Visualisierungen der einzelnen Wetterstationen von 1996-2021. Die Beispieldatei wurde nach dem erfolgreichen Abschluss einer Verarbeitung aller Datensätze extrahiert und für die Darstellung als Beispiel abgelegt. Alle Metadaten (Stationsnummer, Jahr) finden sich direkt in der PNG Datei. Nach der Verarbeitung der Visualisierungen sollte eine nahezu identische Datei im erzeugten Zielordner abgelegt sein. Weicht dieser Graph leicht vom Beispiel ab, so ist dies auf Rundungsfehler der Float Werte und "Random-Seeds" bei der Erzeugung des Graphen über MatPlotLib und SNS zurückzuführen.
 
-#### spark
+### spark
 
 Enthält alle Konfigurationsdateien sowie den PySpark Service für das Projekt.
 
-### Weitere Informationen
+### visuals
+
+Enthält alle Konfigurationen sowie den Python Service zur Visualisierung, aufgerufen wird dieser über das Docker-Compose File und wird als separater Service erzeugt.
+
+
+## Weitere Informationen
 Das GitHub Repo beinhaltet noch eine zweite Branch mit dem Namen "Security". In dieser werden Einstellung zur sicheren Übertragung per SSL und ACLs für das HDFS konfiguriert. Dies wird hier nur Beispielhaft dargestellt, da man für eine echte Security, echte Zertifikate erstellen müsste, welche den Rahmen der Umsetzung sprengen würden. Auch ist das setzen der ACLs nicht direkt über Docker-Compose möglich, weshalb in diesem Fall davon abgesehen wird. Dennoch ist der Zugriff auf bestimmte User (z.B. hadoop) beschränkt und es kann nicht jeder alles tun. Der Web-User des HDFS kann bspw. nur Daten einsehen, aber nicht verändern, löschen oder anlegen. Die "main" Branch ist somit die, die für die Reproduzierbarkeit der Ergebnisse verwendet werden sollte.
-
-## Ordner Phase 3
-
-In diesem Ordner wird die Synthese des gesamten Portfolios dargestellt und ein abschließendes Abstract zur Verfügung gestellt. Dies geschieht nach dem Feedback aus "Phase 2".
