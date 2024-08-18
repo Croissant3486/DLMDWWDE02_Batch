@@ -7,9 +7,7 @@ import logging
 import time
 import os
 import json
-import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
+
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -87,8 +85,7 @@ def read_from_kafka_with_retry(max_retries=5, retry_interval=10):
 # Check for data and process in batches
 def process_data():
     try:
-        counter = 0
-        while counter < 12:
+        while True:
             df, latest_offsets = read_from_kafka_with_retry()
             saved_offsets = read_offsets().get("temperature", {})
 
@@ -129,79 +126,8 @@ def process_data():
  
             time.sleep(10)  # Sleep to prevent continuous querying
 
-        create_visualizations()
     except Exception as e:
         logger.error(f"Error in processing data: {e}")
-
-# Visualization function with explicit color and style for each metric
-def plot_aggregations(df: pd.DataFrame, year: str, station_id: str):
-    metrics = {
-        'average_temperature': {'label': 'Average Temperature', 'color': 'b', 'linestyle': '-'},
-        'mode_temperature': {'label': 'Mode Temperature', 'color': 'r', 'linestyle': '--'},
-        'median_temperature': {'label': 'Median Temperature', 'color': 'g', 'linestyle': '-.'}
-    }
-
-    # Ensure sorting by year_month before plotting
-    df = df.sort_values('year_month')
-
-    # Round the values to one decimal place
-    df['average_temperature'] = df['average_temperature'].astype(float).round(1)
-    df['mode_temperature'] = df['mode_temperature'].astype(float).round(1)
-    df['median_temperature'] = df['median_temperature'].astype(float).round(1)
-
-    plt.figure(figsize=(12, 8))
-
-    for metric, properties in metrics.items():
-        sns.lineplot(
-            data=df,
-            x='year_month',
-            y=metric,
-            marker='o',
-            label=properties['label'],
-            color=properties['color'],
-            linestyle=properties['linestyle']
-        )
-
-    plt.title(f'Temperature Metrics in {year} (Station: {station_id})')
-    plt.xlabel('Month')
-    plt.ylabel('Temperature')
-    plt.xticks(rotation=45)
-    plt.legend()
-    plt.tight_layout()
-    
-    #Lösung zum Speichern von Daten in HDFS
-    #file_path = f'/tmp/average_temperature_per_{time_unit}.png'
-    #plt.savefig(file_path)
-    #img_df = spark.read.format("image").load(file_path)
-    #proc_df = img_df.select(base64(col("image.data")).alias('encoded'))
-    #proc_df.coalesce(1).write.mode('overwrite').format("text").save('hdfs://namenode:8020/tmp/hadoop-root/dfs/data/visuals'
-
-    #Da impraktikabel wird das Image zurück auf die local disk, in das Output-Verzeichnis, geschrieben.
-    output_dir = f'/output/{station_id}/{year}'
-    os.makedirs(output_dir, exist_ok=True)
-    file_path = f'{output_dir}/temperature_metrics.png'
-    plt.savefig(file_path)
-    logger.info(f"Saved visualization to {file_path}")
-    plt.clf()  # Clear the figure for the next plot
-
-# Convert Spark DataFrame to Pandas DataFrame for visualization
-def create_visualizations():
-    aggregated_temperature_dataframe = spark.read.format("csv").option("header", "true").load("hdfs://namenode:8020/tmp/hadoop-root/dfs/data/processed_data.csv")
-    logger.info("Loaded aggregated data for visualization.")
-
-    unique_years = aggregated_temperature_dataframe.select("year").distinct().collect()
-    unique_years = [row["year"] for row in unique_years]
-
-    for year in unique_years:
-        unique_stations = aggregated_temperature_dataframe.filter(col("year") == year).select("station_id").distinct().collect()
-        unique_stations = [row["station_id"] for row in unique_stations]
-
-        for station_id in unique_stations:
-            yearly_data = aggregated_temperature_dataframe.filter((col("year") == year) & (col("station_id") == station_id)).toPandas()
-            plot_aggregations(yearly_data, str(year), station_id)
-
-    logger.info("Visualizations created.")
-    spark.stop()
 
 # Execute processing pipeline
 process_data()

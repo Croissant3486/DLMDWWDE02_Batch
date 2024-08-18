@@ -88,6 +88,23 @@ services:
       - kafka-network
       - hdfs-network
 
+  visualization-service:
+    build: ./visuals
+    environment:
+      - MPLCONFIGDIR=/tmp/.matplotlib
+    volumes:
+      - ./output:/output
+      - ./visuals:/visuals
+    depends_on:
+      - spark-master
+      - spark-worker
+      - kafka-broker
+      - namenode
+    networks:
+      - spark-network
+      - kafka-network
+      - hdfs-network
+
   namenode:
     image: apache/hadoop:3.3.6
     hostname: namenode

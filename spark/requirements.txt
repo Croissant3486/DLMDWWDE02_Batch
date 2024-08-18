@@ -1,4 +1,1 @@
 pyspark
-numpy
-matplotlib
-seaborn
