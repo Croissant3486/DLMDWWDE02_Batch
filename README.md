@@ -1,6 +1,6 @@
 # DLMDWWDE02_Batch
 
-Herzlich Willkommen zum GitHub Repository für die Batchprozessierungsaufgabe im Kurs DLMDWWDE02 (Data Engineering) der IU. In dieser README finden Sie einen Einstieg in die Struktur des Repositories und des Codes.
+Herzlich Willkommen im GitHub Repository für die Batchprozessierungsaufgabe des Kurses DLMDWWDE02 (Data Engineering) der IU. In dieser README finden Sie einen Einstieg in die Struktur des Repositories und des Codes.
 
 ##### Table of Contents 
 - [DLMDWWDE02_Batch](#dlmdwwde02_batch)
@@ -30,9 +30,9 @@ Herzlich Willkommen zum GitHub Repository für die Batchprozessierungsaufgabe im
   | OS | Windows 11 23H2 | 
 
    `WICHTIG:`
-     Um eine korrekte Ausführung des Code zu gewährleisten muss zunächst die ZIP-Datei im "Input" Ordner entpackt werden. Dies ist leider notwendig, da GitHub nur eine Upload Dateigröße von <100 MB zulässt.
+     Um eine korrekte Ausführung des Code zu gewährleisten, muss zunächst die ZIP-Datei im "Input" Ordner entpackt werden. Dies ist leider notwendig, da GitHub nur eine Upload Dateigröße von <100 MB zulässt.
 
-  In diesem Repository befinden sich eine Docker Compose Datei für die Erstellung der vier Microservices. Für den Ingest wird ein "Kafka" Container verwendet, für die Prozessierung ein Spark Container, für die Persistierung ein HDFS Container und für die Visualisierung ein Python Container. Die zu prozessierenden Input-Datensätze basieren auf mehr als 1.000.000 gemessenen Temperaturdaten von deutschen Wetterstationen der Jahre 1996-2021 (https://www.kaggle.com/datasets/matthiaskleine/german-temperature-data-1990-2021/data). Der verarbeitete Output des Spark Services wird in einem HDFS gespeichert, welches über die URL: http://localhost:9870 erreichbar ist. Ein Visualisierungsmicroservice sorgt dafür, dass nachdem keine weiteren zu verarbeitenden Datensätze mehr in die Kafka Topic "Temperature" geschrieben werden Graphen auf Basis des Jahres und der Wetterstation erzeugt sowie in den Ordner "Output" geschrieben werden. Zur Erstellung der Container wurde die Docker-CLI sowie Docker Desktop verwendet.
+  In diesem Repository befinden sich eine Docker Compose Datei für die Erstellung der Microservices. Für den Ingest wird ein "Kafka" Container verwendet, für die Prozessierung ein Spark Container, für die Persistierung ein HDFS Container und für die Visualisierung ein Python Container. Des weiteren exisitiert ein Container der sich auf das Backup des HDFS fokussiert und diverse Container die für den Betrieb der erwähnten Microservices benötigt werden. Die zu prozessierenden Input-Datensätze basieren auf mehr als 1.000.000 gemessenen Temperaturdaten von deutschen Wetterstationen der Jahre 1996-2021 (https://www.kaggle.com/datasets/matthiaskleine/german-temperature-data-1990-2021/data). Der verarbeitete Output des Spark Services wird in einem HDFS gespeichert, welches über die URL: http://localhost:9870 erreichbar ist. Der Zustand des Spark Services kann über den Spark-Master überprüft werden. Dieser ist über die Adresse: http://localhost:8080 erreichbar. Der Python Visualisierungsmicroservice sorgt dafür, dass nachdem keine weiteren zu verarbeitenden Datensätze mehr in die Kafka Topic "Temperature" geschrieben werden Graphen auf Basis des Jahres und der Wetterstation erzeugt werden. Der erzeugten Graphen wernen im Anschluss in den Ordner "Output" geschrieben. Zur Erstellung der Container wurde die Docker-CLI sowie Docker Desktop verwendet.
 
   Der Visualisierungs-Service beginnt 120 Sekunden nachdem der Kafka Producer aufgehört hat neue Daten an die Topic zu übermitteln die aggregierten Daten aus dem HDFS zu visualisieren. Danach wartet dieser solange bis erneut Datensätze in die Topic geschrieben werden und fängt nach dem gesetzten Timeout von 120 Sekunden ebenfalls wieder an diese zu visualisieren. Sind alle Daten aus dem HDFS (zum Zeitpunkt des Timeout Triggers) verabeitet und visualisiert worden, so können diese im "Output" Ordner des heruntergeladenen Repos angeschaut werden. Der Timeout zur Visualisierung der Daten ist sinnvoll, da die aggregierten Metriken über den Verlauf eines Jahres dargestellt werden sollen. Würde der Service kontinuierlich visualisieren, so würden die Graphen entweder ständig überschrieben werden, was unperformant ist oder unvollständig sein, was für eine Visualisierung ebenfalls unbrauchbar ist.
 
@@ -51,9 +51,9 @@ Alle Services laufen kontinuierlich und warten auf neue Inputs. Entsprechende Ti
     
   5. Für Ergebnisse: Warten bis die Verarbeitung abgeschlossen ist (dies dauert etwa 80 Minuten, siehe oben).
        
-  6. Nachdem der lokale "Output"-Ordner innerhalb des Repositories mit diversen *.png Dateien gefüllt ist, ist die Verarbeitung erfolgreich abgeschlossen. Die PNG-Dateien enthalten die Aggregationen (Mean, Median, Mode) innerhalb eines Jahres der ausgewählten Wetterstationsnummer. Alle Werte können im Detail aus dem HDFS unter folgendem Link: http://localhost:9870/explorer.html#/tmp/hadoop-root/dfs/data/processed_data.csv heruntergeladen und ausgelesen werden.
+  6. Nachdem der lokale "Output"-Ordner innerhalb des Repositories mit diversen *.png Dateien gefüllt ist, ist die aktuelle Verarbeitung erfolgreich abgeschlossen. Die PNG-Dateien enthalten die Aggregationen (Mean, Median, Mode) innerhalb eines Jahres der ausgewählten Wetterstationsnummer. Alle Werte können im Detail aus dem HDFS unter folgendem Link: http://localhost:9870/explorer.html#/tmp/hadoop-root/dfs/data/processed_data.csv heruntergeladen und ausgelesen werden.
 
-  7. Werden Daten im Input angepasst beginnt der gesamte Verarbeitungsprozess erneut.
+  7. Werden Daten im Inputverzeichnis angepasst / verändert beginnt der gesamte Verarbeitungsprozess erneut.
 
 
 ## Erklärung der Unterordner
@@ -61,11 +61,11 @@ Hier finden Sie eine Kurzbeschreibung der Inhalte der Unterordner des Projekts.
 
 ### backups
 
-Dieser Ordner enthält alle Konfigurationen für den HDFS Backup Container.
+Dieser Ordner enthält alle Konfigurationen für den HDFS Backup Container und legt einen Cron Job zur Sicherung in einem "Archiv" an.
 
 ### hdfs
 
-Enthält die Konfiguration für die diversen HDFS Container aus der docker-compose.yml.
+Enthält die Konfiguration für die diversen HDFS Container (NameNode + DataNode) aus der docker-compose.yml. Sorgt für die Funktionalität des HDFS.
 
 ### input
 
@@ -73,19 +73,19 @@ Enthält die Input Daten für die Batchverarbeitung, hier als ZIP Datei, da GitH
 
 ### kafka
 
-Hier liegen der Kafka Producer, die benötigten dependencies und das Dockerfile für die Custom Konfiguration.
+Hier liegt der Kafka Producer, die benötigten Dependencies und das Dockerfile für die Custom Konfiguration. Dieser Service zerteilt die Inputdaten als Batches und veröffentlicht diese in der Kafka Topic "Temperature".
 
 ### output
 
-Ist mit einer Beispieldatei (beispiel.png) gefüllt, um die Visualisierung der Temperatur Aggregationen darzustellen und damit GitHub diesen Ordner ins Repo aufnimmt. Enthält nach der Verarbeitung > 1000 Visualisierungen der einzelnen Wetterstationen von 1996-2021. Die Beispieldatei wurde nach dem erfolgreichen Abschluss einer Verarbeitung aller Datensätze extrahiert und für die Darstellung als Beispiel in diesem Repository abgelegt. Alle Metadaten (Stationsnummer, Jahr) finden sich direkt in der PNG Datei. Nach der Verarbeitung der Visualisierungen sollte eine nahezu identische Datei im erzeugten Zielordner (unter Stationsnummer + Jahr) abgelegt sein. Weicht dieser Graph leicht vom Beispiel ab, so ist dies auf Rundungsfehler der Float Werte und "Random-Seeds" bei der Erzeugung des Graphen über MatPlotLib und Seaborn zurückzuführen.
+Ist mit einer Beispieldatei (beispiel.png) gefüllt, um die Visualisierung der Temperatur Aggregationen darzustellen und damit GitHub diesen Ordner in das Repository aufnimmt. Enthält nach der Verarbeitung > 1000 Visualisierungen der einzelnen Wetterstationen von 1996-2021. Die Beispieldatei wurde nach dem erfolgreichen Abschluss eines Verarbeitungszyklus aller Datensätze extrahiert und für die Darstellung als Beispiel in diesem Repository abgelegt. Alle Metadaten (Stationsnummer, Jahr) finden sich direkt in der PNG Datei. Nach der Verarbeitung der Visualisierungen wird eine nahezu identische Datei im erzeugten Zielordner (unter Stationsnummer + Jahr) abgelegt sein. Weicht dieser Graph leicht vom Beispiel ab, so ist dies auf Rundungsfehler der Float Werte beim Erstellen der Graphenpunkte sowie "Random-Seeds" bei der Erzeugung der Visualisierung des Graphen über MatPlotLib und Seaborn zurückzuführen.
 
 ### spark
 
-Enthält alle Konfigurationsdateien sowie den PySpark Service für das Projekt.
+Enthält alle Konfigurationsdateien sowie den PySpark Service für das Projekt. Dieser Service konsumiert die Datenbatches aus der Kafka Topic "Temperature" und nimmt die Aggregationen der Daten (Mean, Median, Mode etc.) vor. Nach der Aggregation werden die berechneten Werte im HDFS als CSV-Daten abgelegt.
 
 ### visuals
 
-Enthält alle Konfigurationen sowie den Python Service zur Visualisierung, aufgerufen wird dieser über das Docker-Compose File und wird als separater Service-Container erzeugt.
+Enthält alle Konfigurationen sowie den Python Service zur Visualisierung, aufgerufen wird dieser über das Docker-Compose File und wird als separater Service-Container erzeugt. Dieser Service prüft die Kafka Topic "Temperature" solange bis keine neuen Daten inklusive eines Timeouts veröffentlicht worden sind, wartet anschließend 120 Sekunden ob noch weitere neue Daten erzeugt werden und wenn nicht beginnt dieser mit der Erzeugung der Visualisierungen. Erläuterungen warum erst nach der eigentlichen Verarbeitung der Daten die Visualisierungen erzeugt werden, finden Sie im obersten Abschnitt. Nachdem dies durchgeführt worden ist, wartet der Service auf weitere Veränderungen in den Daten und beginnt erneut mit dem Visualisierungszyklus.
 
 
 ## Weitere Informationen
